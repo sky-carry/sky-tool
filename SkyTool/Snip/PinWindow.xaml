@@ -1,0 +1,19 @@
+<Window x:Class="SkyTool.Snip.PinWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight" ShowActivated="True">
+    <Border x:Name="Frame" BorderBrush="#FF4C9AFF" BorderThickness="2" Background="#FF202020">
+        <Image x:Name="Img" Stretch="Fill"
+               RenderOptions.BitmapScalingMode="HighQuality"/>
+    </Border>
+    <Window.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="复制图片" Click="Copy_Click"/>
+            <MenuItem Header="另存为…" Click="Save_Click"/>
+            <Separator/>
+            <MenuItem Header="关闭贴图" Click="Close_Click"/>
+        </ContextMenu>
+    </Window.ContextMenu>
+</Window>

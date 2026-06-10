@@ -1,0 +1,87 @@
+<Window x:Class="SkyTool.Snip.SnipWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        Topmost="True" Background="Black" Cursor="Cross"
+        WindowStartupLocation="Manual" Focusable="True">
+    <Window.Resources>
+        <Style x:Key="ToolBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF44475A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="Root">
+        <!-- 渲染层：最终出图只渲染这一层 -->
+        <Grid x:Name="RenderHost">
+            <Image x:Name="ScreenImg" Stretch="Fill"/>
+            <Canvas x:Name="AnnotCanvas"/>
+        </Grid>
+
+        <!-- 覆盖层：暗化 + 选框 -->
+        <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False">
+            <Path x:Name="DimPath" Fill="#7F000000"/>
+            <Rectangle x:Name="SelRect" Stroke="#FF4C9AFF" StrokeThickness="1.5"
+                       Fill="Transparent" Visibility="Collapsed"/>
+            <Border x:Name="SizeTip" Background="#CC202020" CornerRadius="3" Padding="6,2"
+                    Visibility="Collapsed">
+                <TextBlock x:Name="SizeTipText" Foreground="White" FontSize="12"/>
+            </Border>
+        </Canvas>
+
+        <!-- 工具栏 -->
+        <Border x:Name="Toolbar" Background="#F0282838" CornerRadius="6" Padding="6,4"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
+                Cursor="Arrow">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnRect" Style="{StaticResource ToolBtn}" Content="▢" ToolTip="矩形" Click="Tool_Click" Tag="rect"/>
+                <Button x:Name="BtnEllipse" Style="{StaticResource ToolBtn}" Content="◯" ToolTip="椭圆" Click="Tool_Click" Tag="ellipse"/>
+                <Button x:Name="BtnArrow" Style="{StaticResource ToolBtn}" Content="↗" ToolTip="箭头" Click="Tool_Click" Tag="arrow"/>
+                <Button x:Name="BtnPen" Style="{StaticResource ToolBtn}" Content="✎" ToolTip="画笔" Click="Tool_Click" Tag="pen"/>
+                <Button x:Name="BtnText" Style="{StaticResource ToolBtn}" Content="A" ToolTip="文字" Click="Tool_Click" Tag="text"/>
+                <Button x:Name="BtnMosaic" Style="{StaticResource ToolBtn}" Content="▦" ToolTip="马赛克" Click="Tool_Click" Tag="mosaic"/>
+
+                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+
+                <StackPanel x:Name="ColorPanel" Orientation="Horizontal" VerticalAlignment="Center"/>
+
+                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+
+                <Button x:Name="BtnThin" Style="{StaticResource ToolBtn}" Content="●" FontSize="8" ToolTip="细" Click="Thick_Click" Tag="2"/>
+                <Button x:Name="BtnMid" Style="{StaticResource ToolBtn}" Content="●" FontSize="12" ToolTip="中" Click="Thick_Click" Tag="4"/>
+                <Button x:Name="BtnBold" Style="{StaticResource ToolBtn}" Content="●" FontSize="16" ToolTip="粗" Click="Thick_Click" Tag="7"/>
+
+                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+
+                <Button Style="{StaticResource ToolBtn}" Content="↩" ToolTip="撤销 (Ctrl+Z)" Click="Undo_Click"/>
+
+                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+
+                <Button Style="{StaticResource ToolBtn}" Content="📌" ToolTip="贴到屏幕 (F3)" Click="Pin_Click"/>
+                <Button Style="{StaticResource ToolBtn}" Content="💾" ToolTip="保存 (Ctrl+S)" Click="Save_Click"/>
+                <Button Style="{StaticResource ToolBtn}" Content="✔" Foreground="#FF6CD96C" ToolTip="复制并关闭 (Enter)" Click="Copy_Click"/>
+                <Button Style="{StaticResource ToolBtn}" Content="✖" Foreground="#FFFF6B6B" ToolTip="取消 (Esc)" Click="Cancel_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

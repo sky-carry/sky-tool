@@ -1,0 +1,77 @@
+<Window x:Class="SkyTool.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sky 工具箱" Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
+        Background="#FF1E1E2E">
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Button">
+            <Setter Property="Background" Value="#FF2A2A3E"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Margin" Value="14,6"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF35354D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="0,14,0,16">
+        <TextBlock Text="🧰 Sky 工具箱" FontSize="20" FontWeight="Bold" Foreground="White"
+                   Margin="18,0,0,10"/>
+
+        <Button Style="{StaticResource Card}" Click="Snip_Click">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" x:Name="SnipKey" Foreground="#FF4C9AFF" FontSize="13"
+                           VerticalAlignment="Center"/>
+                <StackPanel>
+                    <TextBlock Text="✂ 截图 / 贴图" Foreground="White" FontSize="15" FontWeight="Bold"/>
+                    <TextBlock Text="框选截屏，支持标注（矩形/箭头/文字/马赛克），可贴在屏幕最前"
+                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+        </Button>
+
+        <Button Style="{StaticResource Card}" Click="Search_Click">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" x:Name="SearchKey" Foreground="#FF4C9AFF" FontSize="13"
+                           VerticalAlignment="Center"/>
+                <StackPanel>
+                    <TextBlock Text="🔍 文件搜索" Foreground="White" FontSize="15" FontWeight="Bold"/>
+                    <TextBlock x:Name="SearchDesc" Text="全盘文件名即时搜索（NTFS MFT 索引，Everything 同原理）"
+                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+        </Button>
+
+        <Button Style="{StaticResource Card}" Click="Memo_Click">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" x:Name="MemoKey" Foreground="#FF4C9AFF" FontSize="13"
+                           VerticalAlignment="Center"/>
+                <StackPanel>
+                    <TextBlock Text="📌 桌面备忘录" Foreground="White" FontSize="15" FontWeight="Bold"/>
+                    <TextBlock Text="钉在桌面的今日待办，可设时间提醒、勾选完成、收起展开"
+                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </DockPanel>
+        </Button>
+
+        <TextBlock x:Name="IndexStatus" Foreground="#FF6B7089" FontSize="11" Margin="18,10,18,0"
+                   TextWrapping="Wrap" Text="索引启动中…"/>
+        <TextBlock Foreground="#FF6B7089" FontSize="11" Margin="18,4,18,0"
+                   Text="关闭此窗口不会退出程序，工具箱常驻系统托盘。"/>
+    </StackPanel>
+</Window>
