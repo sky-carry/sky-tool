@@ -16,11 +16,13 @@ public partial class SnipWindow : Window
     private static SnipWindow _current;
 
     private readonly ScreenCapture.Shot _shot;
+    private readonly List<Int32Rect> _windowRects; // 截图瞬间的窗口边界快照（物理像素，Z 序）
 
     private enum Mode { Selecting, Dragging, Editing }
     private Mode _mode = Mode.Selecting;
 
     private Point _dragStart;
+    private bool _manualDrag;              // 本次按下是否真正拖动了（否则视为单击选中悬停窗口）
     private Rect _sel = Rect.Empty;
 
     private string _tool;                 // rect/ellipse/arrow/pen/text/mosaic/null
@@ -38,7 +40,8 @@ public partial class SnipWindow : Window
     {
         if (_current != null) return; // 已经在截图中
         var shot = ScreenCapture.CaptureVirtualScreen();
-        _current = new SnipWindow(shot);
+        var winRects = ScreenCapture.SnapshotWindowRects(); // 在蒙层出现前快照窗口边界
+        _current = new SnipWindow(shot, winRects);
         _current.Show();
         _current.Activate();
     }
@@ -53,10 +56,11 @@ public partial class SnipWindow : Window
         return true;
     }
 
-    private SnipWindow(ScreenCapture.Shot shot)
+    private SnipWindow(ScreenCapture.Shot shot, List<Int32Rect> windowRects)
     {
         InitializeComponent();
         _shot = shot;
+        _windowRects = windowRects;
         ScreenImg.Source = shot.Bitmap;
 
         SourceInitialized += (_, _) =>
@@ -77,13 +81,74 @@ public partial class SnipWindow : Window
             _toolButtons["text"] = BtnText;
             _toolButtons["mosaic"] = BtnMosaic;
             BuildColorPanel();
+            // 蒙层刚出现时就对光标下的窗口做一次吸附高亮
+            Native.GetCursorPos(out var pt);
+            HoverAt(new Point((pt.X - _shot.X) / PxPerDipX, (pt.Y - _shot.Y) / PxPerDipY));
         };
         Closed += (_, _) => _current = null;
 
         MouseLeftButtonDown += OnDown;
         MouseMove += OnMove;
         MouseLeftButtonUp += OnUp;
+        MouseRightButtonDown += OnRightDown;
         KeyDown += OnKey;
+    }
+
+    /// <summary>右键：标注/已框选阶段 → 退回重新框选；框选阶段 → 退出截图。</summary>
+    private void OnRightDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Toolbar.IsMouseOver) return;
+        if (_mode == Mode.Editing) ResetToSelecting();
+        else if (_mode == Mode.Selecting) Close();
+    }
+
+    private void ResetToSelecting()
+    {
+        _editingText = null;          // 丢弃未提交的文字
+        _drawing = null;
+        AnnotCanvas.Children.Clear();
+        _undo.Clear();
+        AnnotCanvas.Clip = null;
+        Toolbar.Visibility = Visibility.Collapsed;
+        _tool = null;
+        foreach (var btn in _toolButtons.Values) btn.Background = Brushes.Transparent;
+        _mode = Mode.Selecting;
+        Cursor = Cursors.Cross;
+        _sel = Rect.Empty;
+        SelRect.Visibility = Visibility.Collapsed;
+        SizeTip.Visibility = Visibility.Collapsed;
+        UpdateDim();
+        HoverAt(Mouse.GetPosition(Root)); // 立即恢复窗口吸附高亮
+    }
+
+    // ---------- 悬停吸附窗口边框 ----------
+
+    /// <summary>找鼠标（DIP 坐标）下最顶层窗口的边界，没有命中则返回整个屏幕。</summary>
+    private Rect HitWindowRect(Point pDip)
+    {
+        double px = _shot.X + pDip.X * PxPerDipX;
+        double py = _shot.Y + pDip.Y * PxPerDipY;
+        foreach (var r in _windowRects)
+        {
+            if (px < r.X || px >= r.X + r.Width || py < r.Y || py >= r.Y + r.Height) continue;
+            var rect = new Rect(
+                (r.X - _shot.X) / PxPerDipX,
+                (r.Y - _shot.Y) / PxPerDipY,
+                r.Width / PxPerDipX,
+                r.Height / PxPerDipY);
+            rect.Intersect(new Rect(0, 0, Root.ActualWidth, Root.ActualHeight));
+            if (rect.IsEmpty) continue;
+            return rect;
+        }
+        return new Rect(0, 0, Root.ActualWidth, Root.ActualHeight);
+    }
+
+    private void HoverAt(Point pDip)
+    {
+        if (Root.ActualWidth <= 0) return;
+        _sel = HitWindowRect(pDip);
+        SelRect.Visibility = Visibility.Visible;
+        UpdateSelectionVisual();
     }
 
     // ---------- 像素 ↔ DIP 换算 ----------
@@ -145,10 +210,8 @@ public partial class SnipWindow : Window
         {
             _mode = Mode.Dragging;
             _dragStart = p;
-            _sel = new Rect(p, p);
-            SelRect.Visibility = Visibility.Visible;
+            _manualDrag = false; // 还没拖动；单击松手就选中当前吸附的窗口
             CaptureMouse();
-            UpdateSelectionVisual();
         }
         else if (_mode == Mode.Editing && _tool != null && _sel.Contains(p))
         {
@@ -171,10 +234,19 @@ public partial class SnipWindow : Window
     private void OnMove(object sender, MouseEventArgs e)
     {
         var p = e.GetPosition(Root);
-        if (_mode == Mode.Dragging)
+        if (_mode == Mode.Selecting)
         {
-            _sel = new Rect(_dragStart, p);
-            UpdateSelectionVisual();
+            HoverAt(p); // 悬停吸附窗口边框
+        }
+        else if (_mode == Mode.Dragging)
+        {
+            if (!_manualDrag && (p - _dragStart).Length > 4)
+                _manualDrag = true;
+            if (_manualDrag)
+            {
+                _sel = new Rect(_dragStart, p);
+                UpdateSelectionVisual();
+            }
         }
         else if (_mode == Mode.Editing && _drawing != null)
         {
@@ -187,18 +259,14 @@ public partial class SnipWindow : Window
         if (_mode == Mode.Dragging)
         {
             ReleaseMouseCapture();
-            if (_sel.Width < 5 || _sel.Height < 5)
+            // 没拖动 = 单击：直接采用悬停吸附的窗口选区（_sel 已是该窗口边界）
+            if (_sel.IsEmpty || _sel.Width < 5 || _sel.Height < 5)
             {
                 _mode = Mode.Selecting;
-                SelRect.Visibility = Visibility.Collapsed;
-                _sel = Rect.Empty;
-                UpdateDim();
+                HoverAt(e.GetPosition(Root));
                 return;
             }
-            _mode = Mode.Editing;
-            Cursor = Cursors.Arrow;
-            AnnotCanvas.Clip = new RectangleGeometry(_sel);
-            ShowToolbar();
+            EnterEditing();
         }
         else if (_mode == Mode.Editing && _drawing != null)
         {
@@ -206,6 +274,14 @@ public partial class SnipWindow : Window
             FinishShape(_drawing);
             _drawing = null;
         }
+    }
+
+    private void EnterEditing()
+    {
+        _mode = Mode.Editing;
+        Cursor = Cursors.Arrow;
+        AnnotCanvas.Clip = new RectangleGeometry(_sel);
+        ShowToolbar();
     }
 
     private Point ClampToSel(Point p) => new(
