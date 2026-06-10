@@ -7,27 +7,38 @@
     <Window.Resources>
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#E8E8F2"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="8,7"/>
             <Setter Property="Margin" Value="1,0"/>
-            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4"
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#FF44475A"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#FF3D3D58"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="ToolSep" TargetType="Rectangle">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Fill" Value="#FF3B3B54"/>
+            <Setter Property="Margin" Value="6,4"/>
+        </Style>
+        <Style x:Key="Mdl2" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="14"/>
         </Style>
     </Window.Resources>
 
@@ -41,46 +52,87 @@
         <!-- 覆盖层：暗化 + 选框 -->
         <Canvas x:Name="OverlayCanvas" IsHitTestVisible="False">
             <Path x:Name="DimPath" Fill="#7F000000"/>
-            <Rectangle x:Name="SelRect" Stroke="#FF4C9AFF" StrokeThickness="1.5"
+            <Rectangle x:Name="SelRect" Stroke="#FF7AA2F7" StrokeThickness="1.5"
                        Fill="Transparent" Visibility="Collapsed"/>
-            <Border x:Name="SizeTip" Background="#CC202020" CornerRadius="3" Padding="6,2"
+            <Border x:Name="SizeTip" Background="#E0202030" CornerRadius="5" Padding="7,3"
                     Visibility="Collapsed">
-                <TextBlock x:Name="SizeTipText" Foreground="White" FontSize="12"/>
+                <TextBlock x:Name="SizeTipText" Foreground="White" FontSize="12" FontFamily="Consolas"/>
             </Border>
         </Canvas>
 
         <!-- 工具栏 -->
-        <Border x:Name="Toolbar" Background="#F0282838" CornerRadius="6" Padding="6,4"
+        <Border x:Name="Toolbar" Background="#F8262636" CornerRadius="10" Padding="8,5"
+                BorderBrush="#FF3B3B54" BorderThickness="1"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Visibility="Collapsed"
                 Cursor="Arrow">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="Black"/>
+            </Border.Effect>
             <StackPanel Orientation="Horizontal">
-                <Button x:Name="BtnRect" Style="{StaticResource ToolBtn}" Content="▢" ToolTip="矩形" Click="Tool_Click" Tag="rect"/>
-                <Button x:Name="BtnEllipse" Style="{StaticResource ToolBtn}" Content="◯" ToolTip="椭圆" Click="Tool_Click" Tag="ellipse"/>
-                <Button x:Name="BtnArrow" Style="{StaticResource ToolBtn}" Content="↗" ToolTip="箭头" Click="Tool_Click" Tag="arrow"/>
-                <Button x:Name="BtnPen" Style="{StaticResource ToolBtn}" Content="✎" ToolTip="画笔" Click="Tool_Click" Tag="pen"/>
-                <Button x:Name="BtnText" Style="{StaticResource ToolBtn}" Content="A" ToolTip="文字" Click="Tool_Click" Tag="text"/>
-                <Button x:Name="BtnMosaic" Style="{StaticResource ToolBtn}" Content="▦" ToolTip="马赛克" Click="Tool_Click" Tag="mosaic"/>
+                <Button x:Name="BtnRect" Style="{StaticResource ToolBtn}" ToolTip="矩形" Click="Tool_Click" Tag="rect">
+                    <Rectangle Width="13" Height="10" Stroke="#E8E8F2" StrokeThickness="1.5" RadiusX="1.5" RadiusY="1.5"/>
+                </Button>
+                <Button x:Name="BtnEllipse" Style="{StaticResource ToolBtn}" ToolTip="椭圆" Click="Tool_Click" Tag="ellipse">
+                    <Ellipse Width="14" Height="11" Stroke="#E8E8F2" StrokeThickness="1.5"/>
+                </Button>
+                <Button x:Name="BtnArrow" Style="{StaticResource ToolBtn}" ToolTip="箭头" Click="Tool_Click" Tag="arrow">
+                    <Path Stroke="#E8E8F2" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M2,13 L13,2 M13,2 L7.5,2 M13,2 L13,7.5"/>
+                </Button>
+                <Button x:Name="BtnPen" Style="{StaticResource ToolBtn}" ToolTip="画笔" Click="Tool_Click" Tag="pen">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE70F;"/>
+                </Button>
+                <Button x:Name="BtnText" Style="{StaticResource ToolBtn}" ToolTip="文字" Click="Tool_Click" Tag="text">
+                    <TextBlock Text="A" FontWeight="Bold" FontSize="14" Foreground="#E8E8F2"/>
+                </Button>
+                <Button x:Name="BtnMosaic" Style="{StaticResource ToolBtn}" ToolTip="马赛克" Click="Tool_Click" Tag="mosaic">
+                    <Path Fill="#E8E8F2" Data="M2,2 H7 V7 H2 Z M9,9 H14 V14 H9 Z M9,2 H14 V7 H9 Z M2,9 H7 V14 H2 Z"
+                          Opacity="0.85" Width="16" Height="16">
+                        <Path.OpacityMask>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                <GradientStop Color="#66FFFFFF" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Path.OpacityMask>
+                    </Path>
+                </Button>
 
-                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+                <Rectangle Style="{StaticResource ToolSep}"/>
 
                 <StackPanel x:Name="ColorPanel" Orientation="Horizontal" VerticalAlignment="Center"/>
 
-                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+                <Rectangle Style="{StaticResource ToolSep}"/>
 
-                <Button x:Name="BtnThin" Style="{StaticResource ToolBtn}" Content="●" FontSize="8" ToolTip="细" Click="Thick_Click" Tag="2"/>
-                <Button x:Name="BtnMid" Style="{StaticResource ToolBtn}" Content="●" FontSize="12" ToolTip="中" Click="Thick_Click" Tag="4"/>
-                <Button x:Name="BtnBold" Style="{StaticResource ToolBtn}" Content="●" FontSize="16" ToolTip="粗" Click="Thick_Click" Tag="7"/>
+                <Button x:Name="BtnThin" Style="{StaticResource ToolBtn}" ToolTip="细" Click="Thick_Click" Tag="2">
+                    <Ellipse Width="5" Height="5" Fill="#E8E8F2"/>
+                </Button>
+                <Button x:Name="BtnMid" Style="{StaticResource ToolBtn}" ToolTip="中" Click="Thick_Click" Tag="4">
+                    <Ellipse Width="8" Height="8" Fill="#E8E8F2"/>
+                </Button>
+                <Button x:Name="BtnBold" Style="{StaticResource ToolBtn}" ToolTip="粗" Click="Thick_Click" Tag="7">
+                    <Ellipse Width="12" Height="12" Fill="#E8E8F2"/>
+                </Button>
 
-                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+                <Rectangle Style="{StaticResource ToolSep}"/>
 
-                <Button Style="{StaticResource ToolBtn}" Content="↩" ToolTip="撤销 (Ctrl+Z)" Click="Undo_Click"/>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="撤销 (Ctrl+Z)" Click="Undo_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE7A7;"/>
+                </Button>
 
-                <Rectangle Width="1" Fill="#FF44475A" Margin="6,2"/>
+                <Rectangle Style="{StaticResource ToolSep}"/>
 
-                <Button Style="{StaticResource ToolBtn}" Content="📌" ToolTip="贴到屏幕 (F3)" Click="Pin_Click"/>
-                <Button Style="{StaticResource ToolBtn}" Content="💾" ToolTip="保存 (Ctrl+S)" Click="Save_Click"/>
-                <Button Style="{StaticResource ToolBtn}" Content="✔" Foreground="#FF6CD96C" ToolTip="复制并关闭 (Enter)" Click="Copy_Click"/>
-                <Button Style="{StaticResource ToolBtn}" Content="✖" Foreground="#FFFF6B6B" ToolTip="取消 (Esc)" Click="Cancel_Click"/>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="钉到屏幕 (F3)" Click="Pin_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE718;" Foreground="#F5C97B"/>
+                </Button>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="保存 (Ctrl+S)" Click="Save_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE74E;"/>
+                </Button>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="复制并关闭 (Enter)" Click="Copy_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE8FB;" Foreground="#4ECB71"/>
+                </Button>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="取消 (Esc / 双击)" Click="Cancel_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE711;" Foreground="#F38BA8"/>
+                </Button>
             </StackPanel>
         </Border>
     </Grid>

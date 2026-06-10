@@ -43,6 +43,16 @@ public partial class SnipWindow : Window
         _current.Activate();
     }
 
+    /// <summary>全局 F3 按下时：若正在截图且已框选则固定当前选区。
+    /// 返回 true 表示按键已被截图窗口消化（不再贴剪贴板图）。</summary>
+    public static bool PinCurrent()
+    {
+        if (_current == null) return false;
+        if (_current._mode == Mode.Editing && !_current._sel.IsEmpty)
+            _current.FinishPin();
+        return true;
+    }
+
     private SnipWindow(ScreenCapture.Shot shot)
     {
         InitializeComponent();
@@ -85,31 +95,36 @@ public partial class SnipWindow : Window
     {
         Color[] colors =
         {
-            Color.FromRgb(0xE5, 0x39, 0x35), // 红
-            Color.FromRgb(0xFF, 0xB3, 0x00), // 黄
-            Color.FromRgb(0x43, 0xA0, 0x47), // 绿
-            Color.FromRgb(0x1E, 0x88, 0xE5), // 蓝
+            Color.FromRgb(0xF3, 0x5B, 0x6A), // 红
+            Color.FromRgb(0xF5, 0xC9, 0x7B), // 黄
+            Color.FromRgb(0x4E, 0xCB, 0x71), // 绿
+            Color.FromRgb(0x7A, 0xA2, 0xF7), // 蓝
             Colors.White,
             Colors.Black,
         };
         foreach (var c in colors)
         {
-            var btn = new Button
+            var dot = new Ellipse
             {
-                Width = 18, Height = 18, Margin = new Thickness(2, 0, 2, 0),
-                Background = new SolidColorBrush(c),
-                BorderBrush = Brushes.Gray,
-                BorderThickness = new Thickness(c == _color ? 2 : 1),
-                Cursor = Cursors.Arrow,
+                Width = 16, Height = 16, Margin = new Thickness(3, 0, 3, 0),
+                Fill = new SolidColorBrush(c),
+                Stroke = c == _color ? Brushes.White : new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)),
+                StrokeThickness = c == _color ? 2 : 1,
+                Cursor = Cursors.Hand,
                 Tag = c,
             };
-            btn.Click += (s, _) =>
+            dot.MouseLeftButtonDown += (s, e) =>
             {
-                _color = (Color)((Button)s).Tag;
-                foreach (var child in ColorPanel.Children.OfType<Button>())
-                    child.BorderThickness = new Thickness(((Color)child.Tag) == _color ? 2.5 : 1);
+                _color = (Color)((Ellipse)s).Tag;
+                foreach (var child in ColorPanel.Children.OfType<Ellipse>())
+                {
+                    bool sel = (Color)child.Tag == _color;
+                    child.Stroke = sel ? Brushes.White : new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+                    child.StrokeThickness = sel ? 2 : 1;
+                }
+                e.Handled = true;
             };
-            ColorPanel.Children.Add(btn);
+            ColorPanel.Children.Add(dot);
         }
     }
 
@@ -118,6 +133,13 @@ public partial class SnipWindow : Window
     {
         if (Toolbar.IsMouseOver) return;
         var p = e.GetPosition(Root);
+
+        // 双击取消截图（标注工具激活且点在选区内时除外，避免误关）
+        if (e.ClickCount == 2 && (_tool == null || !_sel.Contains(p)))
+        {
+            Close();
+            return;
+        }
 
         if (_mode == Mode.Selecting)
         {
@@ -239,7 +261,7 @@ public partial class SnipWindow : Window
         string tag = (string)((Button)sender).Tag;
         _tool = _tool == tag ? null : tag;
         foreach (var (key, btn) in _toolButtons)
-            btn.Background = key == _tool ? new SolidColorBrush(Color.FromRgb(0x4C, 0x9A, 0xFF)) : Brushes.Transparent;
+            btn.Background = key == _tool ? new SolidColorBrush(Color.FromRgb(0x3E, 0x5A, 0x95)) : Brushes.Transparent;
         Cursor = _tool == null ? Cursors.Arrow : Cursors.Cross;
     }
 
@@ -248,7 +270,7 @@ public partial class SnipWindow : Window
         _thickness = double.Parse((string)((Button)sender).Tag);
         foreach (var b in new[] { BtnThin, BtnMid, BtnBold })
             b.Background = Brushes.Transparent;
-        ((Button)sender).Background = new SolidColorBrush(Color.FromRgb(0x4C, 0x9A, 0xFF));
+        ((Button)sender).Background = new SolidColorBrush(Color.FromRgb(0x3E, 0x5A, 0x95));
     }
 
     private FrameworkElement CreateShape(Point p)
@@ -340,7 +362,7 @@ public partial class SnipWindow : Window
         if (len < 1) return new LineGeometry(a, b);
         v.Normalize();
         var perp = new Vector(-v.Y, v.X);
-        double headLen = Math.Clamp(thickness * 4, 10, len);
+        double headLen = Math.Min(Math.Max(thickness * 4, 10), len); // 箭头很短时收缩箭头头部，不能用 Clamp(min>max 会抛异常)
         double headW = headLen * 0.6;
         Point basePt = b - v * headLen;
 

@@ -4,10 +4,15 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" ShowActivated="True">
-    <Border x:Name="Frame" BorderBrush="#FF4C9AFF" BorderThickness="2" Background="#FF202020">
-        <Image x:Name="Img" Stretch="Fill"
-               RenderOptions.BitmapScalingMode="HighQuality"/>
-    </Border>
+    <Grid Margin="12">
+        <Border x:Name="Frame" BorderBrush="Transparent" BorderThickness="1.5" Background="#FF202030">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.6" Color="Black"/>
+            </Border.Effect>
+            <Image x:Name="Img" Stretch="Fill"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+        </Border>
+    </Grid>
     <Window.ContextMenu>
         <ContextMenu>
             <MenuItem Header="复制图片" Click="Copy_Click"/>

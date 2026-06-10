@@ -22,6 +22,7 @@ public partial class SearchWindow : Window
     public SearchWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => Common.WindowFx.Modernize(this);
         _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _debounce.Tick += (_, _) => { _debounce.Stop(); RunQuery(); };
 
@@ -94,7 +95,7 @@ public partial class SearchWindow : Window
         if (e.Key == Key.Down && ResultList.Items.Count > 0)
         {
             ResultList.SelectedIndex = 0;
-            ((ListViewItem)ResultList.ItemContainerGenerator.ContainerFromIndex(0))?.Focus();
+            (ResultList.ItemContainerGenerator.ContainerFromIndex(0) as ListBoxItem)?.Focus();
         }
         else if (e.Key == Key.Enter && ResultList.Items.Count > 0)
         {
@@ -141,6 +142,10 @@ public partial class SearchWindow : Window
     {
         if (Selected != null) Clipboard.SetText(Selected.FullPath);
     }
+
+    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
 
     private void RestartAsAdmin_Click(object sender, RoutedEventArgs e)
     {

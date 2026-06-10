@@ -1,4 +1,5 @@
 using System.Windows;
+using SkyTool.Common;
 using SkyTool.Search;
 using SkyTool.Snip;
 
@@ -9,6 +10,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => WindowFx.Modernize(this);
         FileIndexService.Instance.StatusChanged += () =>
             Dispatcher.BeginInvoke(() => IndexStatus.Text = FileIndexService.Instance.Status);
         // 关闭 = 收进托盘
@@ -18,10 +20,14 @@ public partial class MainWindow : Window
     public void UpdateHotkeyLabels()
     {
         var app = (App)Application.Current;
-        SnipKey.Text = app.SnipHotkeyLabel;
+        SnipKey.Text = $"{app.SnipHotkeyLabel} / {app.PinHotkeyLabel}";
         SearchKey.Text = app.SearchHotkeyLabel;
         MemoKey.Text = app.MemoHotkeyLabel;
     }
+
+    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void CloseToTray_Click(object sender, RoutedEventArgs e) => Hide();
 
     private void Snip_Click(object sender, RoutedEventArgs e)
     {

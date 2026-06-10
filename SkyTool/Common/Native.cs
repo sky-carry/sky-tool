@@ -39,6 +39,20 @@ internal static class Native
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);
 
+    // ---------- DWM（Win11 圆角 / 深色标题栏） ----------
+    public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWCP_ROUND = 2;
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out POINT pt);
+
     // ---------- 卷 / USN 日志 ----------
     public const uint GENERIC_READ = 0x80000000;
     public const uint FILE_SHARE_READ = 0x1;

@@ -1,77 +1,116 @@
 <Window x:Class="SkyTool.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Sky 工具箱" Width="420" SizeToContent="Height"
+        Title="Sky 工具箱" Width="430" SizeToContent="Height"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
-        Background="#FF1E1E2E">
+        WindowStyle="None" Background="{StaticResource BgBrush}"
+        FontFamily="Segoe UI" TextOptions.TextRenderingMode="ClearType">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="44" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0"/>
+    </WindowChrome.WindowChrome>
     <Window.Resources>
         <Style x:Key="Card" TargetType="Button">
-            <Setter Property="Background" Value="#FF2A2A3E"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Margin" Value="14,6"/>
-            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Margin" Value="16,5"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}" BorderThickness="1"
+                                BorderBrush="Transparent">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#FF35354D"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface2Brush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource StrokeBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.8"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="KeyChip" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource AccentDimBrush}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
-    <StackPanel Margin="0,14,0,16">
-        <TextBlock Text="🧰 Sky 工具箱" FontSize="20" FontWeight="Bold" Foreground="White"
-                   Margin="18,0,0,10"/>
+    <StackPanel>
+        <!-- 标题栏 -->
+        <DockPanel Height="44">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource CaptionBtn}" Content="&#xE921;" ToolTip="最小化" Click="Min_Click"/>
+                <Button Style="{StaticResource CaptionBtn}" Content="&#xE8BB;" ToolTip="收进托盘" Click="CloseToTray_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="🧰" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Sky 工具箱" Foreground="{StaticResource TextBrush}" FontSize="15"
+                           FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DockPanel>
 
         <Button Style="{StaticResource Card}" Click="Snip_Click">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Right" x:Name="SnipKey" Foreground="#FF4C9AFF" FontSize="13"
-                           VerticalAlignment="Center"/>
-                <StackPanel>
-                    <TextBlock Text="✂ 截图 / 贴图" Foreground="White" FontSize="15" FontWeight="Bold"/>
-                    <TextBlock Text="框选截屏，支持标注（矩形/箭头/文字/马赛克），可贴在屏幕最前"
-                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                <Border DockPanel.Dock="Right" Style="{StaticResource KeyChip}">
+                    <TextBlock x:Name="SnipKey" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                </Border>
+                <Border Width="40" Height="40" CornerRadius="10" Background="#332E86FF" Margin="0,0,12,0">
+                    <TextBlock Text="✂️" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="截图 / 贴图" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="框选标注，F3 把图钉在屏幕最前" Foreground="{StaticResource SubBrush}"
+                               FontSize="11.5" Margin="0,2,8,0" TextWrapping="Wrap"/>
                 </StackPanel>
             </DockPanel>
         </Button>
 
         <Button Style="{StaticResource Card}" Click="Search_Click">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Right" x:Name="SearchKey" Foreground="#FF4C9AFF" FontSize="13"
-                           VerticalAlignment="Center"/>
-                <StackPanel>
-                    <TextBlock Text="🔍 文件搜索" Foreground="White" FontSize="15" FontWeight="Bold"/>
-                    <TextBlock x:Name="SearchDesc" Text="全盘文件名即时搜索（NTFS MFT 索引，Everything 同原理）"
-                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                <Border DockPanel.Dock="Right" Style="{StaticResource KeyChip}">
+                    <TextBlock x:Name="SearchKey" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                </Border>
+                <Border Width="40" Height="40" CornerRadius="10" Background="#334ECB71" Margin="0,0,12,0">
+                    <TextBlock Text="🔍" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="文件搜索" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="全盘文件名即时搜索，Everything 同原理" Foreground="{StaticResource SubBrush}"
+                               FontSize="11.5" Margin="0,2,8,0" TextWrapping="Wrap"/>
                 </StackPanel>
             </DockPanel>
         </Button>
 
         <Button Style="{StaticResource Card}" Click="Memo_Click">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Right" x:Name="MemoKey" Foreground="#FF4C9AFF" FontSize="13"
-                           VerticalAlignment="Center"/>
-                <StackPanel>
-                    <TextBlock Text="📌 桌面备忘录" Foreground="White" FontSize="15" FontWeight="Bold"/>
-                    <TextBlock Text="钉在桌面的今日待办，可设时间提醒、勾选完成、收起展开"
-                               Foreground="#FF9DA3B4" FontSize="12" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                <Border DockPanel.Dock="Right" Style="{StaticResource KeyChip}">
+                    <TextBlock x:Name="MemoKey" Foreground="{StaticResource AccentBrush}" FontSize="12"/>
+                </Border>
+                <Border Width="40" Height="40" CornerRadius="10" Background="#33F5C97B" Margin="0,0,12,0">
+                    <TextBlock Text="📌" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="桌面备忘录" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
+                    <TextBlock Text="钉在桌面的今日待办，定时提醒不误事" Foreground="{StaticResource SubBrush}"
+                               FontSize="11.5" Margin="0,2,8,0" TextWrapping="Wrap"/>
                 </StackPanel>
             </DockPanel>
         </Button>
 
-        <TextBlock x:Name="IndexStatus" Foreground="#FF6B7089" FontSize="11" Margin="18,10,18,0"
-                   TextWrapping="Wrap" Text="索引启动中…"/>
-        <TextBlock Foreground="#FF6B7089" FontSize="11" Margin="18,4,18,0"
-                   Text="关闭此窗口不会退出程序，工具箱常驻系统托盘。"/>
+        <TextBlock x:Name="IndexStatus" Foreground="{StaticResource FaintBrush}" FontSize="11"
+                   Margin="20,12,20,0" TextWrapping="Wrap" Text="索引启动中…"/>
+        <TextBlock Foreground="{StaticResource FaintBrush}" FontSize="11" Margin="20,4,20,16"
+                   Text="关闭窗口不会退出，工具箱常驻系统托盘。"/>
     </StackPanel>
 </Window>

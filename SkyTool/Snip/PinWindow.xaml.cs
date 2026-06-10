@@ -29,17 +29,20 @@ public partial class PinWindow : Window
         SourceInitialized += (_, _) =>
         {
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-            SkyTool.Common.Native.SetWindowPos(hwnd, IntPtr.Zero, physX, physY, 0, 0,
+            // 抵消外层 12 DIP 的阴影边距，让图像正好盖在原选区位置
+            var d = VisualTreeHelper.GetDpi(this);
+            SkyTool.Common.Native.SetWindowPos(hwnd, IntPtr.Zero,
+                physX - (int)Math.Round(12 * d.DpiScaleX), physY - (int)Math.Round(12 * d.DpiScaleY), 0, 0,
                 SkyTool.Common.Native.SWP_NOSIZE | 0x0004 /*SWP_NOZORDER*/);
         };
 
+        var accent = new SolidColorBrush(Color.FromRgb(0x7A, 0xA2, 0xF7));
         MouseLeftButtonDown += (_, _) => { try { DragMove(); } catch { } };
         MouseWheel += OnWheel;
         MouseDown += (_, e) => { if (e.ChangedButton == MouseButton.Middle) Close(); };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
-        MouseEnter += (_, _) => Frame.BorderBrush = System.Windows.Media.Brushes.DodgerBlue;
-        MouseLeave += (_, _) => Frame.BorderBrush = System.Windows.Media.Brushes.Transparent;
-        Loaded += (_, _) => Frame.BorderBrush = System.Windows.Media.Brushes.Transparent;
+        MouseEnter += (_, _) => Frame.BorderBrush = accent;
+        MouseLeave += (_, _) => Frame.BorderBrush = Brushes.Transparent;
     }
 
     private void OnWheel(object sender, MouseWheelEventArgs e)

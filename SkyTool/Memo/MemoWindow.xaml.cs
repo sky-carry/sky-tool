@@ -1,6 +1,6 @@
-using System.Collections.Specialized;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -8,12 +8,13 @@ using SkyTool.Common;
 
 namespace SkyTool.Memo;
 
-/// <summary>钉在桌面的待办挂件：贴底层不挡窗口，可收起/展开，到点提醒。</summary>
+/// <summary>钉在桌面的待办挂件：贴底层不挡窗口，可收起/展开，每个任务可单独设提醒时间。</summary>
 public partial class MemoWindow : Window
 {
     private readonly MemoStore _store = MemoStore.Instance;
     private readonly DispatcherTimer _reminderTimer;
     private DateTime _shownDate = DateTime.Today;
+    private TodoItem _timeEditItem;
 
     public MemoWindow()
     {
@@ -21,6 +22,8 @@ public partial class MemoWindow : Window
 
         SourceInitialized += (_, _) => SendToBottom();
         Deactivated += (_, _) => SendToBottom();
+        // 防误关（Alt+F4 等）：隐藏而不是销毁；应用退出时 WPF 会忽略取消，正常关闭
+        Closing += (_, e) => { e.Cancel = true; Hide(); };
 
         Loaded += (_, _) =>
         {
@@ -32,8 +35,8 @@ public partial class MemoWindow : Window
             }
             else
             {
-                Left = SystemParameters.WorkArea.Right - Width - 24;
-                Top = SystemParameters.WorkArea.Top + 60;
+                Left = SystemParameters.WorkArea.Right - Width - 16;
+                Top = SystemParameters.WorkArea.Top + 48;
             }
             if (s.Collapsed) SetCollapsed(true);
             RefreshView();
@@ -47,15 +50,15 @@ public partial class MemoWindow : Window
         };
 
         TaskList.ItemsSource = _store.Items;
-        ((INotifyCollectionChanged)_store.Items).CollectionChanged += (_, _) => RefreshStats();
-        foreach (var item in _store.Items)
-            item.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(RefreshStats);
         _store.Items.CollectionChanged += (_, e) =>
         {
             if (e.NewItems != null)
                 foreach (TodoItem it in e.NewItems)
                     it.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(RefreshStats);
+            RefreshStats();
         };
+        foreach (var item in _store.Items)
+            item.PropertyChanged += (_, _) => Dispatcher.BeginInvoke(RefreshStats);
 
         // 每 20 秒检查一次提醒 & 跨天刷新
         _reminderTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(20) };
@@ -74,7 +77,7 @@ public partial class MemoWindow : Window
     private void RefreshView()
     {
         var culture = new CultureInfo("zh-CN");
-        TitleText.Text = $"今日待办 · {DateTime.Today:M月d日} {culture.DateTimeFormat.GetAbbreviatedDayName(DateTime.Today.DayOfWeek)}";
+        DateText.Text = $"{DateTime.Today:M月d日} {culture.DateTimeFormat.GetAbbreviatedDayName(DateTime.Today.DayOfWeek)}";
         RefreshStats();
     }
 
@@ -85,6 +88,14 @@ public partial class MemoWindow : Window
         CountText.Text = total == 0 ? "" : $"{done}/{total}";
         DoneStat.Text = total == 0 ? "" : $"已完成 {done} · 未完成 {total - done}";
         EmptyHint.Visibility = total == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateProgress(total, done);
+    }
+
+    private void UpdateProgress(int total, int done)
+    {
+        double w = ProgressTrack.ActualWidth;
+        if (w <= 0) { Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => UpdateProgress(total, done)); return; }
+        ProgressFill.Width = total == 0 ? 0 : w * done / total;
     }
 
     private void Tick()
@@ -122,7 +133,7 @@ public partial class MemoWindow : Window
     private void SetCollapsed(bool collapsed)
     {
         Body.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
-        CollapseBtn.Content = collapsed ? "▸" : "▾";
+        CollapseBtn.Content = collapsed ? "\uE70D" : "\uE70E"; // ChevronDown / ChevronUp
         _store.Settings.Collapsed = collapsed;
         _store.Save();
     }
@@ -134,6 +145,18 @@ public partial class MemoWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e) => AddTask();
 
+    /// <summary>解析 "9:30" / "14:00" 这类时间，返回今天（已过则明天）的提醒时刻；解析失败返回 false。</summary>
+    private static bool TryParseRemindTime(string text, out DateTime remindAt)
+    {
+        remindAt = default;
+        if (!TimeOnly.TryParseExact(text, new[] { "H:mm", "H:m", "HHmm" }, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var time))
+            return false;
+        remindAt = DateTime.Today.Add(time.ToTimeSpan());
+        if (remindAt < DateTime.Now) remindAt = remindAt.AddDays(1);
+        return true;
+    }
+
     private void AddTask()
     {
         string text = NewTaskBox.Text?.Trim();
@@ -143,13 +166,7 @@ public partial class MemoWindow : Window
         string timeText = NewTimeBox.Text?.Trim();
         if (!string.IsNullOrEmpty(timeText))
         {
-            if (TimeOnly.TryParseExact(timeText, new[] { "H:mm", "H:m", "HHmm" }, CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out var time))
-            {
-                var dt = DateTime.Today.Add(time.ToTimeSpan());
-                if (dt < DateTime.Now) dt = dt.AddDays(1); // 已过的时间点视为明天
-                remindAt = dt;
-            }
+            if (TryParseRemindTime(timeText, out var dt)) remindAt = dt;
             else
             {
                 MessageBox.Show("提醒时间格式不对，请用 24 小时制，比如 9:30 或 14:00", "Sky 工具箱",
@@ -174,6 +191,55 @@ public partial class MemoWindow : Window
     {
         foreach (var t in _store.Items.Where(t => t.Done).ToList())
             _store.Items.Remove(t);
+    }
+
+    // ---------- 每任务时间编辑 ----------
+
+    private void Clock_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not TodoItem item) return;
+        _timeEditItem = item;
+        TimeEditBox.Text = item.RemindAt?.ToString("H:mm") ?? "";
+        TimePopup.PlacementTarget = (UIElement)sender;
+        TimePopup.IsOpen = true;
+        TimeEditBox.Focus();
+        TimeEditBox.SelectAll();
+    }
+
+    private void TimeEditBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) ApplyTimeEdit();
+        else if (e.Key == Key.Escape) TimePopup.IsOpen = false;
+    }
+
+    private void TimeApply_Click(object sender, RoutedEventArgs e) => ApplyTimeEdit();
+
+    private void ApplyTimeEdit()
+    {
+        if (_timeEditItem == null) { TimePopup.IsOpen = false; return; }
+        string text = TimeEditBox.Text?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            _timeEditItem.RemindAt = null;
+        }
+        else if (TryParseRemindTime(text, out var dt))
+        {
+            _timeEditItem.RemindAt = dt;
+            _timeEditItem.Notified = false; // 重设时间后重新生效
+        }
+        else
+        {
+            TimeEditBox.Foreground = (System.Windows.Media.Brush)FindResource("RedBrush");
+            return;
+        }
+        TimeEditBox.ClearValue(ForegroundProperty);
+        TimePopup.IsOpen = false;
+    }
+
+    private void TimeClear_Click(object sender, RoutedEventArgs e)
+    {
+        if (_timeEditItem != null) _timeEditItem.RemindAt = null;
+        TimePopup.IsOpen = false;
     }
 
     public void ToggleVisible()
