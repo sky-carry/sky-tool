@@ -25,10 +25,6 @@ public partial class MainWindow : Window
         MemoKey.Text = app.MemoHotkeyLabel;
     }
 
-    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-    private void CloseToTray_Click(object sender, RoutedEventArgs e) => Hide();
-
     private void Snip_Click(object sender, RoutedEventArgs e)
     {
         Hide(); // 别把工具箱自己截进去

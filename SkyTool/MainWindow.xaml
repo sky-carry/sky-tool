@@ -3,11 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sky 工具箱" Width="430" SizeToContent="Height"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
-        WindowStyle="None" Background="{StaticResource BgBrush}"
+        Background="{StaticResource BgBrush}"
         FontFamily="Segoe UI" TextOptions.TextRenderingMode="ClearType">
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="44" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0"/>
-    </WindowChrome.WindowChrome>
     <Window.Resources>
         <Style x:Key="Card" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
@@ -45,21 +42,7 @@
         </Style>
     </Window.Resources>
 
-    <StackPanel>
-        <!-- 标题栏 -->
-        <DockPanel Height="44">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
-                        WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button Style="{StaticResource CaptionBtn}" Content="&#xE921;" ToolTip="最小化" Click="Min_Click"/>
-                <Button Style="{StaticResource CaptionBtn}" Content="&#xE8BB;" ToolTip="收进托盘" Click="CloseToTray_Click"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="🧰" FontSize="16" VerticalAlignment="Center"/>
-                <TextBlock Text="Sky 工具箱" Foreground="{StaticResource TextBrush}" FontSize="15"
-                           FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
-        </DockPanel>
-
+    <StackPanel Margin="0,12,0,0">
         <Button Style="{StaticResource Card}" Click="Snip_Click">
             <DockPanel>
                 <Border DockPanel.Dock="Right" Style="{StaticResource KeyChip}">

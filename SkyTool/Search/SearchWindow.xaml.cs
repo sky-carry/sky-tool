@@ -143,10 +143,6 @@ public partial class SearchWindow : Window
         if (Selected != null) Clipboard.SetText(Selected.FullPath);
     }
 
-    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-
-    private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
-
     private void RestartAsAdmin_Click(object sender, RoutedEventArgs e)
     {
         try
