@@ -13,6 +13,8 @@ public partial class App : Application
     private Mutex _mutex;
     private WF.NotifyIcon _tray;
     private HotkeyManager _hotkeys;
+    private System.Windows.Threading.DispatcherTimer _hotkeyRetry;
+    private bool _snipReg, _pinReg, _searchReg, _memoReg, _conflictNotified;
 
     /// <summary>应用图标（WPF 窗口用）。</summary>
     public static System.Windows.Media.ImageSource AppIcon { get; } =
@@ -63,28 +65,50 @@ public partial class App : Application
         if (MemoStore.Instance.Settings.Visible) Memo.Show();
         MainWin.Show();
 
-        // 全局热键（挂在主窗口）
+        // 全局热键（挂在主窗口）。固定 F1=截图、F3=贴图、Ctrl+Alt+F=搜索、Ctrl+Alt+M=备忘录。
         _hotkeys = new HotkeyManager();
         _hotkeys.Attach(MainWin);
 
-        SnipHotkeyLabel =
-            _hotkeys.Register(0, 0x70 /*F1*/, "F1", SnipWindow.Open) ??
-            _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x41 /*A*/, "Ctrl+Alt+A", SnipWindow.Open) ??
-            "未注册";
-        PinHotkeyLabel =
-            _hotkeys.Register(0, 0x72 /*F3*/, "F3", PinAction) ??
-            _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x50 /*P*/, "Ctrl+Alt+P", PinAction) ??
-            "未注册";
-        SearchHotkeyLabel =
-            _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x46 /*F*/, "Ctrl+Alt+F", () => Search.ShowAndFocus()) ??
-            "未注册";
-        MemoHotkeyLabel =
-            _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x4D /*M*/, "Ctrl+Alt+M", () => Memo.ToggleVisible()) ??
-            "未注册";
-
+        SnipHotkeyLabel = "F1";
+        PinHotkeyLabel = "F3";
+        SearchHotkeyLabel = "Ctrl+Alt+F";
+        MemoHotkeyLabel = "Ctrl+Alt+M";
         MainWin.UpdateHotkeyLabels();
 
         SetupTray();
+        TryRegisterHotkeys();
+    }
+
+    /// <summary>
+    /// 注册全局热键（固定 F1/F3 等，无备用键）。若某个键被其他程序占用（如 Snipaste），
+    /// 会每 3 秒自动重试，等占用程序关闭后立即接管，无需重启工具箱。
+    /// </summary>
+    private void TryRegisterHotkeys()
+    {
+        if (!_snipReg && _hotkeys.Register(0, 0x70 /*F1*/, "F1", SnipWindow.Open) != null) _snipReg = true;
+        if (!_pinReg && _hotkeys.Register(0, 0x72 /*F3*/, "F3", PinAction) != null) _pinReg = true;
+        if (!_searchReg && _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x46 /*F*/, "Ctrl+Alt+F", () => Search.ShowAndFocus()) != null) _searchReg = true;
+        if (!_memoReg && _hotkeys.Register(Native.MOD_CONTROL | Native.MOD_ALT, 0x4D /*M*/, "Ctrl+Alt+M", () => Memo.ToggleVisible()) != null) _memoReg = true;
+
+        if (_snipReg && _pinReg && _searchReg && _memoReg)
+        {
+            _hotkeyRetry?.Stop();
+            return;
+        }
+
+        // 还有热键没抢到：第一次提示一下，并启动自动重试
+        if (!_conflictNotified && (!_snipReg || !_pinReg))
+        {
+            _conflictNotified = true;
+            _tray?.ShowBalloonTip(4000, "Sky 工具箱",
+                "F1/F3 暂被其他程序占用（如 Snipaste）。关闭它后会自动生效，无需重启。", WF.ToolTipIcon.Warning);
+        }
+        if (_hotkeyRetry == null)
+        {
+            _hotkeyRetry = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _hotkeyRetry.Tick += (_, _) => TryRegisterHotkeys();
+            _hotkeyRetry.Start();
+        }
     }
 
     /// <summary>全局 F3：截图中 → 固定当前选区；平时 → 把剪贴板里的图片钉到屏幕（光标处）。</summary>

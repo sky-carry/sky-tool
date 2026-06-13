@@ -554,13 +554,43 @@ public partial class SnipWindow : Window
     private BitmapSource RenderResult()
     {
         CommitTextEditing();
-        int pw = _shot.Bitmap.PixelWidth, ph = _shot.Bitmap.PixelHeight;
-        var rtb = new RenderTargetBitmap(pw, ph,
-            96.0 * pw / Root.ActualWidth, 96.0 * ph / Root.ActualHeight, PixelFormats.Pbgra32);
-        rtb.Render(RenderHost);
-        var cropped = new CroppedBitmap(rtb, DipRectToPixels(_sel));
-        cropped.Freeze();
-        return cropped;
+        var px = DipRectToPixels(_sel);
+        // 直接从原始截图按像素裁剪 —— 屏幕内容零重采样，画质无损
+        var baseCrop = new CroppedBitmap(_shot.Bitmap, px);
+
+        // 没有标注：直接返回原图裁剪（最高画质）
+        if (AnnotCanvas.Children.Count == 0)
+        {
+            baseCrop.Freeze();
+            return baseCrop;
+        }
+
+        // 有标注：在原图分辨率上叠加标注，屏幕内容仍保持像素级
+        double sx = (double)px.Width / _sel.Width;
+        double sy = (double)px.Height / _sel.Height;
+        var dv = new DrawingVisual();
+        RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.NearestNeighbor);
+        using (var dc = dv.RenderOpen())
+        {
+            dc.DrawImage(baseCrop, new Rect(0, 0, px.Width, px.Height));
+            dc.PushTransform(new ScaleTransform(sx, sy));
+            dc.PushTransform(new TranslateTransform(-_sel.X, -_sel.Y));
+            var vb = new VisualBrush(AnnotCanvas)
+            {
+                Stretch = Stretch.None,
+                ViewboxUnits = BrushMappingMode.Absolute,
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewbox = new Rect(0, 0, Root.ActualWidth, Root.ActualHeight),
+                Viewport = new Rect(0, 0, Root.ActualWidth, Root.ActualHeight),
+            };
+            dc.DrawRectangle(vb, null, new Rect(0, 0, Root.ActualWidth, Root.ActualHeight));
+            dc.Pop();
+            dc.Pop();
+        }
+        var rtb = new RenderTargetBitmap(px.Width, px.Height, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(dv);
+        rtb.Freeze();
+        return rtb;
     }
 
     private void Copy_Click(object sender, RoutedEventArgs e) => FinishCopy();
