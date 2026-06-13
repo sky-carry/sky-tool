@@ -73,6 +73,16 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+    public const int GWL_EXSTYLE = -20;
+    public const int WS_EX_TRANSPARENT = 0x20;   // 鼠标穿透（click-through 挂件/覆盖层）
+    public const int WS_EX_TOOLWINDOW = 0x80;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
 
