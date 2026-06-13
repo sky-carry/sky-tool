@@ -14,6 +14,11 @@ public partial class App : Application
     private WF.NotifyIcon _tray;
     private HotkeyManager _hotkeys;
 
+    /// <summary>应用图标（WPF 窗口用）。</summary>
+    public static System.Windows.Media.ImageSource AppIcon { get; } =
+        System.Windows.Media.Imaging.BitmapFrame.Create(
+            new Uri("pack://application:,,,/app.ico", UriKind.Absolute));
+
     public MainWindow MainWin { get; private set; }
     public SearchWindow Search { get; private set; }
     public MemoWindow Memo { get; private set; }
@@ -52,8 +57,8 @@ public partial class App : Application
         FileIndexService.Instance.Start();
 
         // 窗口
-        MainWin = new MainWindow();
-        Search = new SearchWindow();
+        MainWin = new MainWindow { Icon = AppIcon };
+        Search = new SearchWindow { Icon = AppIcon };
         Memo = new MemoWindow();
         if (MemoStore.Instance.Settings.Visible) Memo.Show();
         MainWin.Show();
@@ -100,11 +105,26 @@ public partial class App : Application
         _tray?.ShowBalloonTip(1500, "Sky 工具箱", "剪贴板里没有图片，先截一张（F1）或复制图片再按 F3。", WF.ToolTipIcon.Info);
     }
 
+    private static SD.Icon LoadTrayIcon()
+    {
+        try
+        {
+            var info = GetResourceStream(new Uri("app.ico", UriKind.Relative));
+            if (info != null)
+            {
+                using var stream = info.Stream;
+                return new SD.Icon(stream, new SD.Size(32, 32));
+            }
+        }
+        catch { /* 资源缺失时退回系统图标 */ }
+        return SD.SystemIcons.Application;
+    }
+
     private void SetupTray()
     {
         _tray = new WF.NotifyIcon
         {
-            Icon = SD.SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Text = "Sky 工具箱",
             Visible = true,
         };
