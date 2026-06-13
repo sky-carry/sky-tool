@@ -24,7 +24,6 @@ a{color:inherit;text-decoration:none}
 .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
 ::selection{background:var(--accent);color:#16161f}
 
-/* 顶栏 */
 header{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(22,22,31,.72);border-bottom:1px solid transparent;transition:border-color .3s}
 header.scrolled{border-bottom-color:var(--stroke)}
 nav{max-width:1040px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
@@ -35,7 +34,6 @@ nav{max-width:1040px;margin:0 auto;padding:14px 24px;display:flex;align-items:ce
 .nav-links a:hover{color:var(--ink)}
 .nav-cta{padding:7px 16px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#16161f!important;font-weight:600;font-size:.9rem}
 
-/* Hero */
 .hero{position:relative;padding:150px 0 70px;text-align:center;overflow:hidden}
 .hero-glow{position:absolute;width:680px;height:680px;border-radius:50%;background:radial-gradient(circle,rgba(122,162,247,.18),transparent 65%);top:-280px;left:50%;transform:translateX(-50%);pointer-events:none}
 .hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--stroke) 1px,transparent 1px),linear-gradient(90deg,var(--stroke) 1px,transparent 1px);background-size:56px 56px;opacity:.25;mask-image:radial-gradient(ellipse 60% 50% at 50% 25%,#000 5%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse 60% 50% at 50% 25%,#000 5%,transparent 70%);pointer-events:none}
@@ -47,21 +45,26 @@ nav{max-width:1040px;margin:0 auto;padding:14px 24px;display:flex;align-items:ce
 .hero .lede{margin:18px auto 0;max-width:30em;font-size:1.12rem;color:var(--sub)}
 .badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:999px;background:var(--surface);border:1px solid var(--stroke);font-size:.82rem;color:var(--sub)}
-.dl-row{margin-top:36px;display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap}
-.btn-dl{display:inline-flex;align-items:center;gap:11px;padding:15px 30px;border-radius:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#16161f;font-weight:700;font-size:1.06rem;box-shadow:0 12px 30px -8px rgba(122,162,247,.5);transition:transform .2s,box-shadow .2s}
-.btn-dl:hover{transform:translateY(-3px);box-shadow:0 18px 40px -8px rgba(122,162,247,.6)}
-.btn-dl svg{width:22px;height:22px}
-.dl-meta{font-size:.85rem;color:var(--faint)}
-.dl-meta b{color:var(--sub);font-weight:500}
 
-/* 通用 section */
+.dl-pair{margin-top:36px;display:flex;gap:16px;align-items:stretch;flex-wrap:wrap;justify-content:center}
+.dl-card{display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 24px;border-radius:18px;border:1px solid var(--stroke);background:rgba(36,36,56,.45);width:300px;max-width:100%}
+.dl-card.primary{border-color:color-mix(in srgb,var(--accent) 50%,var(--stroke));background:rgba(122,162,247,.08)}
+.dl-card .label{font-weight:600;font-size:1.02rem;display:flex;align-items:center;gap:8px}
+.dl-card .pill{font-size:.7rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--accent);color:#16161f}
+.dl-card .tagline{font-size:.82rem;color:var(--faint);text-align:center;line-height:1.6}
+.dl-card .tagline b{color:var(--sub);font-weight:600}
+.btn-dl{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 20px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#16161f;font-weight:700;font-size:1rem;box-shadow:0 12px 30px -10px rgba(122,162,247,.5);transition:transform .2s,box-shadow .2s}
+.btn-dl:hover{transform:translateY(-2px);box-shadow:0 16px 36px -10px rgba(122,162,247,.6)}
+.btn-dl.ghost{background:var(--surface);color:var(--ink);box-shadow:none;border:1px solid var(--stroke)}
+.btn-dl.ghost:hover{border-color:var(--accent);background:var(--surface2)}
+.btn-dl svg{width:19px;height:19px}
+
 section.block{padding:56px 0}
 .sec-head{text-align:center;margin-bottom:42px}
 .sec-tag{font-family:var(--font-display);font-size:.82rem;letter-spacing:.14em;color:var(--accent);font-weight:600;text-transform:uppercase}
 .sec-head h2{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.2rem);font-weight:700;letter-spacing:-.02em;margin-top:8px}
 .sec-head p{color:var(--sub);margin-top:8px;max-width:36em;margin-left:auto;margin-right:auto}
 
-/* 功能卡 */
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .feat{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--stroke);border-radius:18px;padding:26px 24px;transition:transform .3s,border-color .3s;opacity:0;transform:translateY(24px)}
 .feat.in{opacity:1;transform:none}
@@ -75,20 +78,17 @@ section.block{padding:56px 0}
 .feat .keys{margin-top:16px;display:flex;gap:7px;flex-wrap:wrap}
 .kbd{font-family:var(--font-display);font-size:.76rem;padding:3px 9px;border-radius:7px;background:rgba(122,162,247,.12);color:var(--accent);border:1px solid rgba(122,162,247,.25)}
 
-/* 热键速查 */
 .keys-band{background:var(--bg2);border:1px solid var(--stroke);border-radius:18px;padding:30px;display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
 .keyitem{text-align:center}
 .keyitem .k{display:inline-block;font-family:var(--font-display);font-weight:600;padding:8px 16px;border-radius:10px;background:var(--surface2);border:1px solid var(--stroke);color:var(--ink);font-size:1rem}
 .keyitem .d{margin-top:10px;color:var(--sub);font-size:.88rem}
 
-/* 安装说明 */
 .notes{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--stroke);border-radius:18px;padding:30px 34px}
 .notes ol{margin:0;padding-left:1.3em;color:var(--sub)}
 .notes li{margin:10px 0}
 .notes li b{color:var(--ink);font-weight:600}
 .tip{margin-top:18px;padding:14px 16px;border-radius:11px;background:rgba(245,201,123,.1);border:1px solid rgba(245,201,123,.28);color:var(--amber);font-size:.9rem}
 
-/* CTA 收尾 */
 .cta-end{text-align:center;background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(122,162,247,.14),transparent 70%);border:1px solid var(--stroke);border-radius:22px;padding:54px 24px}
 .cta-end h2{font-family:var(--font-display);font-size:clamp(1.6rem,4vw,2.1rem);font-weight:700}
 .cta-end p{color:var(--sub);margin-top:10px}
@@ -131,16 +131,27 @@ footer a:hover{color:var(--ink)}
     <p class="lede">全盘文件秒级搜索、截图贴图标注、桌面待办提醒 —— 一个常驻托盘的 Windows 桌面效率工具。</p>
     <div class="badges">
       <span class="chip">🪟 Windows 10 / 11</span>
-      <span class="chip">📦 免安装运行时</span>
+      <span class="chip">🪶 空闲内存约 30 MB</span>
       <span class="chip">🆓 完全免费</span>
       <span class="chip">v0.1.0</span>
     </div>
-    <div class="dl-row" id="download">
-      <a class="btn-dl" href="SkyTool.exe" download>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        下载 Windows 版
-      </a>
-      <div class="dl-meta"><b>SkyTool.exe</b> · 约 68 MB · 64 位<br>双击即用，无需安装 .NET 运行时</div>
+    <div class="dl-pair" id="download">
+      <div class="dl-card primary">
+        <div class="label">完整版 <span class="pill">推荐</span></div>
+        <a class="btn-dl" href="SkyTool.exe" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          下载（约 154 MB）
+        </a>
+        <div class="tagline"><b>双击即用，什么都不用装</b><br>已内置运行时，换电脑、发给别人都能直接跑</div>
+      </div>
+      <div class="dl-card">
+        <div class="label">精简版</div>
+        <a class="btn-dl ghost" href="SkyTool-lite.exe" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          下载（约 0.3 MB）
+        </a>
+        <div class="tagline"><b>包极小，但需先装一次</b><br><a href="https://dotnet.microsoft.com/download/dotnet/8.0" target="_blank" rel="noopener" style="color:var(--accent)">.NET 8 桌面运行时</a></div>
+      </div>
     </div>
   </div>
 </section>
@@ -199,7 +210,8 @@ footer a:hover{color:var(--ink)}
     </div>
     <div class="notes">
       <ol>
-        <li><b>下载并双击 SkyTool.exe</b>，程序会启动并最小化到系统托盘（右下角工具箱图标）。</li>
+        <li><b>两个版本选一个</b>：<b>完整版</b>下载大但双击即用、什么都不用装（推荐）；<b>精简版</b>下载仅 0.3 MB，但首次运行需先装一次 .NET 8 桌面运行时。两者功能完全相同，运行时内存都很低（空闲约 30 MB）。</li>
+        <li><b>双击 SkyTool.exe</b>，程序会启动并最小化到系统托盘（右下角工具箱图标）。</li>
         <li><b>首次运行若被 SmartScreen 拦截</b>，点「更多信息 → 仍要运行」即可（自编译应用未做数字签名，属正常现象）。</li>
         <li><b>右键托盘图标</b>可看到全部功能和当前热键，双击图标打开主面板。</li>
         <li><b>想要 Everything 那样的秒级搜索</b>，在搜索窗口点「以管理员重启」即可启用 MFT 极速索引与实时更新。</li>
@@ -214,11 +226,14 @@ footer a:hover{color:var(--ink)}
     <div class="cta-end">
       <h2>现在就装进你的电脑</h2>
       <p>一个 exe，三件趁手的事。免费，无广告，常驻托盘不打扰。</p>
-      <div class="dl-row">
-        <a class="btn-dl" href="SkyTool.exe" download>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          下载 Windows 版 (68 MB)
-        </a>
+      <div class="dl-pair" style="margin-top:28px">
+        <div class="dl-card primary" style="width:auto">
+          <a class="btn-dl" href="SkyTool.exe" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            下载完整版（154 MB）
+          </a>
+          <div class="tagline">或顶部选择 0.3 MB 精简版</div>
+        </div>
       </div>
     </div>
   </div>

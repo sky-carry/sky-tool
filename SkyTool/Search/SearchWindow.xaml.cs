@@ -34,8 +34,8 @@ public partial class SearchWindow : Window
             AdminBanner.Visibility = svc.IsAdminMode ? Visibility.Collapsed : Visibility.Visible;
             SearchBox.Focus();
         };
-        // 关闭时隐藏而不是销毁，索引常驻
-        Closing += (s, e) => { e.Cancel = true; Hide(); };
+        // 关闭时隐藏而不是销毁，索引常驻；顺手把搜索期间的临时内存还给系统
+        Closing += (s, e) => { e.Cancel = true; Hide(); Common.MemoryUtil.Trim(); };
     }
 
     public void ShowAndFocus()

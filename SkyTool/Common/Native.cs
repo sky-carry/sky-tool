@@ -39,6 +39,13 @@ internal static class Native
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);
 
+    // ---------- 工作集回收 ----------
+    [DllImport("psapi.dll")]
+    public static extern bool EmptyWorkingSet(IntPtr hProcess);
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentProcess();
+
     // ---------- DWM（Win11 圆角 / 深色标题栏 / 窗口真实边界） ----------
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     public const int DWMWA_CLOAKED = 14;

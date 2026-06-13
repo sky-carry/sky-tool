@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
+using System.IO.Enumeration;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using SkyTool.Common;
@@ -40,8 +41,9 @@ public class FileIndexService
 
     private const ulong FrnMask = 0x0000FFFFFFFFFFFF; // 去掉序列号，只留 48 位索引
 
-    /// <summary>降级模式条目：Dir 是共享引用（同目录的所有子项指向同一个字符串），省内存。</summary>
-    private class WalkEntry
+    /// <summary>降级模式条目：用 struct + 连续数组存储，省去每条目的对象头开销；
+    /// Dir 是共享引用（同目录的所有子项指向同一个字符串），进一步省内存。</summary>
+    private struct WalkEntry
     {
         public string Name;
         public string Dir;
@@ -49,7 +51,7 @@ public class FileIndexService
     }
 
     private readonly List<VolumeIndex> _volumes = new();
-    private List<WalkEntry> _walkIndex = new();             // 降级模式索引
+    private WalkEntry[] _walkIndex = Array.Empty<WalkEntry>(); // 降级模式索引（结构体数组）
     private CancellationTokenSource _cts = new();
 
     public bool IsAdminMode { get; private set; }
@@ -61,7 +63,7 @@ public class FileIndexService
     {
         get
         {
-            long n = _walkIndex.Count;
+            long n = _walkIndex.Length;
             foreach (var v in _volumes) n += v.Entries.Count;
             return n;
         }
@@ -114,6 +116,7 @@ public class FileIndexService
             }
             Ready = true;
             SetStatus($"已索引 {TotalCount:N0} 个文件 · 极速模式 · 实时更新中");
+            Common.MemoryUtil.Trim(); // 建完索引把临时内存还给系统
             // 每个卷一个监听线程，跟踪 USN 日志增量
             foreach (var vi in _volumes)
             {
@@ -128,6 +131,7 @@ public class FileIndexService
             WalkDrives(drives, ct);
             Ready = true;
             SetStatus($"已索引 {TotalCount:N0} 个文件 · 普通模式（以管理员重启可启用极速索引与实时更新）");
+            Common.MemoryUtil.Trim(); // 建完索引把临时内存还给系统
         }
     }
 
@@ -343,8 +347,26 @@ public class FileIndexService
 
     // ---------- 降级模式：目录遍历 ----------
 
+    /// <summary>低分配的目录项枚举：直接产出 (名称, 是否目录, 是否重解析点)，
+    /// 不为每个文件生成 FileInfo/DirectoryInfo 对象，大幅减少扫描期的临时垃圾。</summary>
+    private sealed class DirEntryEnumerator : FileSystemEnumerator<(string name, bool isDir, bool reparse)>
+    {
+        public DirEntryEnumerator(string directory, EnumerationOptions options) : base(directory, options) { }
+        protected override (string, bool, bool) TransformEntry(ref FileSystemEntry entry)
+            => (entry.FileName.ToString(),
+                entry.IsDirectory,
+                (entry.Attributes & FileAttributes.ReparsePoint) != 0);
+    }
+
     private void WalkDrives(List<DriveInfo> drives, CancellationToken ct)
     {
+        var opts = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = false,
+            AttributesToSkip = 0, // 不跳过隐藏/系统文件，索引保持完整
+        };
+
         var perDrive = new List<WalkEntry>[drives.Count];
         long count = 0;
         Parallel.For(0, drives.Count, new ParallelOptions { CancellationToken = ct }, di =>
@@ -356,35 +378,42 @@ public class FileIndexService
             {
                 if (ct.IsCancellationRequested) return;
                 string dir = stack.Pop();
-                IEnumerable<FileSystemInfo> children;
                 try
                 {
-                    children = new DirectoryInfo(dir + '\\').EnumerateFileSystemInfos();
-                }
-                catch { continue; } // 无权限/路径过长，跳过
+                    using var e = new DirEntryEnumerator(dir + '\\', opts);
+                    while (e.MoveNext())
+                    {
+                        var (name, isDir, reparse) = e.Current;
+                        // Dir 共享同一个 dir 字符串实例，不为每个文件单独存完整路径
+                        list.Add(new WalkEntry { Name = name, Dir = dir, IsDir = isDir });
+                        if (isDir && !reparse)
+                            stack.Push(dir + '\\' + name);
 
-                foreach (var info in children)
-                {
-                    bool isDir = (info.Attributes & FileAttributes.Directory) != 0;
-                    bool reparse = (info.Attributes & FileAttributes.ReparsePoint) != 0;
-                    // Dir 共享同一个 dir 字符串实例，不为每个文件单独存完整路径
-                    list.Add(new WalkEntry { Name = info.Name, Dir = dir, IsDir = isDir });
-                    if (isDir && !reparse)
-                        stack.Push(dir + '\\' + info.Name);
-
-                    long n = Interlocked.Increment(ref count);
-                    if (n % 100000 == 0)
-                        SetStatus($"正在扫描… 已收录 {n:N0} 个文件");
+                        long n = Interlocked.Increment(ref count);
+                        if (n % 100000 == 0)
+                            SetStatus($"正在扫描… 已收录 {n:N0} 个文件");
+                    }
                 }
+                catch { /* 无权限/路径过长，跳过 */ }
             }
             perDrive[di] = list;
         });
 
-        var merged = new List<WalkEntry>((int)Math.Min(count, int.MaxValue));
+        // 合并成单个连续结构体数组（精确容量，无多余预留）
+        long total = 0;
+        foreach (var l in perDrive) if (l != null) total += l.Count;
+        var merged = new WalkEntry[total];
+        int pos = 0;
         foreach (var l in perDrive)
-            if (l != null) merged.AddRange(l);
+        {
+            if (l == null) continue;
+            l.CopyTo(merged, pos);
+            pos += l.Count;
+        }
         _walkIndex = merged;
+
         GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+        GC.WaitForPendingFinalizers();
     }
 
     // ---------- 查询 ----------
@@ -429,11 +458,13 @@ public class FileIndexService
             }
 
             var walk = _walkIndex;
-            if (walk.Count > 0 && collected < cap)
+            if (walk.Length > 0 && collected < cap)
             {
-                Parallel.ForEach(walk, new ParallelOptions { CancellationToken = ct }, r =>
+                // 用 Parallel.For 按索引访问结构体数组，避免逐元素装箱
+                Parallel.For(0, walk.Length, new ParallelOptions { CancellationToken = ct }, i =>
                 {
                     if (collected >= cap) return;
+                    ref readonly var r = ref walk[i];
                     if (Match(r.Name))
                     {
                         matches.Add(new SearchResult { Name = r.Name, FullPath = r.Dir + '\\' + r.Name, IsDir = r.IsDir });

@@ -12,7 +12,17 @@
     <AssemblyTitle>Sky 工具箱</AssemblyTitle>
     <Product>SkyTool</Product>
     <Version>0.1.0</Version>
+    <!-- 内存策略：工作站 GC + 并发 + 节约内存模式，及时把空闲内存还给系统，适合常驻托盘的小工具 -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <!-- 单文件发布不压缩：程序集走内存映射而非解压进内存常驻，空闲内存从 ~530MB 降到 ~30MB（代价是 exe 更大） -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="9" Trim="false" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" Trim="false" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- WinForms 仅用于托盘图标和屏幕捕获，去掉它的全局 using，避免与 WPF 类型歧义 -->
