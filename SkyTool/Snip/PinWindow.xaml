@@ -4,7 +4,20 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" ShowActivated="True">
-    <Grid Margin="12">
+    <Window.Resources>
+        <Style x:Key="Grip" TargetType="Rectangle">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="RadiusX" Value="4"/>
+            <Setter Property="RadiusY" Value="4"/>
+            <Setter Property="Fill" Value="#FF7AA2F7"/>
+            <Setter Property="Stroke" Value="White"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="Root" Margin="12">
         <Border x:Name="Frame" BorderBrush="Transparent" BorderThickness="1.5" Background="#FF202030">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.6" Color="Black"/>
@@ -12,11 +25,27 @@
             <Image x:Name="Img" Stretch="Fill"
                    RenderOptions.BitmapScalingMode="HighQuality"/>
         </Border>
+
+        <!-- 四角拖拽手柄（保持比例缩放），悬停时显现 -->
+        <Rectangle x:Name="GripTL" Style="{StaticResource Grip}" Tag="TL" Cursor="SizeNWSE"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-8,-8,0,0"
+                   MouseLeftButtonDown="Grip_Down" MouseMove="Grip_Move" MouseLeftButtonUp="Grip_Up"/>
+        <Rectangle x:Name="GripTR" Style="{StaticResource Grip}" Tag="TR" Cursor="SizeNESW"
+                   HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-8,0"
+                   MouseLeftButtonDown="Grip_Down" MouseMove="Grip_Move" MouseLeftButtonUp="Grip_Up"/>
+        <Rectangle x:Name="GripBL" Style="{StaticResource Grip}" Tag="BL" Cursor="SizeNESW"
+                   HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-8,0,0,-8"
+                   MouseLeftButtonDown="Grip_Down" MouseMove="Grip_Move" MouseLeftButtonUp="Grip_Up"/>
+        <Rectangle x:Name="GripBR" Style="{StaticResource Grip}" Tag="BR" Cursor="SizeNWSE"
+                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-8,-8"
+                   MouseLeftButtonDown="Grip_Down" MouseMove="Grip_Move" MouseLeftButtonUp="Grip_Up"/>
     </Grid>
+
     <Window.ContextMenu>
         <ContextMenu>
             <MenuItem Header="复制图片" Click="Copy_Click"/>
             <MenuItem Header="另存为…" Click="Save_Click"/>
+            <MenuItem Header="还原原始大小" Click="Reset_Click"/>
             <Separator/>
             <MenuItem Header="关闭贴图" Click="Close_Click"/>
         </ContextMenu>
