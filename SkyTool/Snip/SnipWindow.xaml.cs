@@ -35,11 +35,15 @@ public partial class SnipWindow : Window
     private Point _shapeStart;
     private TextBox _editingText;
 
-    // 移动已有标注
-    private UIElement _movingEl;
-    private TranslateTransform _moveTT;
-    private Point _moveStart;
-    private double _moveOrigX, _moveOrigY;
+    // 选择/移动/缩放已有标注
+    private enum EditOp { None, Move, Resize }
+    private EditOp _op;
+    private FrameworkElement _opEl;
+    private Point _opStart;                 // 拖拽起点（DIP）
+    private Rect _opOrigRect;               // Canvas 定位元素的起始矩形
+    private TranslateTransform _opTT;       // 变换移动（箭头/画笔）
+    private double _opTTx, _opTTy;
+    private string _resizeEdge;             // L/R/T/B 组合，如 "TL"
 
     private readonly Dictionary<string, Button> _toolButtons = new();
 
@@ -115,7 +119,7 @@ public partial class SnipWindow : Window
     {
         _editingText = null;          // 丢弃未提交的文字
         _drawing = null;
-        _movingEl = null;
+        _op = EditOp.None; _opEl = null;
         AnnotCanvas.Children.Clear();
         _undo.Clear();
         _redo.Clear();
@@ -240,18 +244,31 @@ public partial class SnipWindow : Window
             }
             e.Handled = true;
         }
-        else if (_mode == Mode.Editing) // 选择/移动模式：拖动已有标注
+        else if (_mode == Mode.Editing) // 选择/移动模式：拖动已有标注（移动或缩放）
         {
             CommitTextEditing();
-            var el = HitAnnotation(p);
+            var el = HitAnnotation(p) as FrameworkElement;
             if (el != null)
             {
-                _movingEl = el;
-                _moveStart = p;
-                _moveTT = el.RenderTransform as TranslateTransform;
-                if (_moveTT == null) { _moveTT = new TranslateTransform(); el.RenderTransform = _moveTT; }
-                _moveOrigX = _moveTT.X; _moveOrigY = _moveTT.Y;
-                Cursor = Cursors.SizeAll;
+                _opEl = el;
+                _opStart = p;
+                string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
+                if (edge != null)
+                {
+                    _op = EditOp.Resize;
+                    _resizeEdge = edge;
+                    _opOrigRect = ElRect(el);
+                }
+                else
+                {
+                    _op = EditOp.Move;
+                    if (double.IsNaN(Canvas.GetLeft(el))) // 箭头/画笔：用平移变换移动
+                    {
+                        _opTT = el.RenderTransform as TranslateTransform ?? new TranslateTransform();
+                        el.RenderTransform = _opTT; _opTTx = _opTT.X; _opTTy = _opTT.Y;
+                    }
+                    else _opOrigRect = ElRect(el); // Canvas 定位：改 Left/Top
+                }
                 CaptureMouse();
                 e.Handled = true;
             }
@@ -279,12 +296,79 @@ public partial class SnipWindow : Window
         {
             UpdateShape(_drawing, _shapeStart, ClampToSel(p));
         }
-        else if (_mode == Mode.Editing && _movingEl != null)
+        else if (_mode == Mode.Editing && _op == EditOp.Move)
         {
-            _moveTT.X = _moveOrigX + (p.X - _moveStart.X);
-            _moveTT.Y = _moveOrigY + (p.Y - _moveStart.Y);
+            double dx = p.X - _opStart.X, dy = p.Y - _opStart.Y;
+            if (double.IsNaN(Canvas.GetLeft(_opEl)))
+            {
+                _opTT.X = _opTTx + dx; _opTT.Y = _opTTy + dy;
+            }
+            else
+            {
+                Canvas.SetLeft(_opEl, _opOrigRect.X + dx);
+                Canvas.SetTop(_opEl, _opOrigRect.Y + dy);
+            }
+        }
+        else if (_mode == Mode.Editing && _op == EditOp.Resize)
+        {
+            var r = _opOrigRect;
+            double l = r.Left, t = r.Top, rr = r.Right, b = r.Bottom;
+            if (_resizeEdge.Contains('L')) l = p.X;
+            if (_resizeEdge.Contains('R')) rr = p.X;
+            if (_resizeEdge.Contains('T')) t = p.Y;
+            if (_resizeEdge.Contains('B')) b = p.Y;
+            double nl = Math.Min(l, rr), nt = Math.Min(t, b);
+            double nw = Math.Max(Math.Abs(rr - l), 4), nh = Math.Max(Math.Abs(b - t), 4);
+            Canvas.SetLeft(_opEl, nl); Canvas.SetTop(_opEl, nt);
+            _opEl.Width = nw; _opEl.Height = nh;
+        }
+        else if (_mode == Mode.Editing && _op == EditOp.None && !IsDrawingTool(_tool))
+        {
+            UpdateMoveCursor(p); // 悬停时按位置显示 移动/缩放 光标
         }
     }
+
+    /// <summary>选择模式下悬停标注时，按是否靠近边角显示对应光标。</summary>
+    private void UpdateMoveCursor(Point p)
+    {
+        var el = HitAnnotation(p) as FrameworkElement;
+        if (el == null) { Cursor = Cursors.Arrow; return; }
+        string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
+        Cursor = edge != null ? EdgeCursor(edge) : Cursors.SizeAll;
+    }
+
+    private static bool IsResizable(UIElement el) => el is Rectangle || el is Ellipse;
+
+    private static Rect ElRect(FrameworkElement el)
+    {
+        double l = Canvas.GetLeft(el); double t = Canvas.GetTop(el);
+        if (double.IsNaN(l)) l = 0; if (double.IsNaN(t)) t = 0;
+        double w = double.IsNaN(el.Width) ? el.ActualWidth : el.Width;
+        double h = double.IsNaN(el.Height) ? el.ActualHeight : el.Height;
+        return new Rect(l, t, w, h);
+    }
+
+    /// <summary>判断点 p 落在矩形 r 的哪条边/角（容差 tol），返回如 "TL"/"R"，无则 null。</summary>
+    private static string HitEdge(Rect r, Point p, double tol)
+    {
+        if (p.X < r.Left - tol || p.X > r.Right + tol || p.Y < r.Top - tol || p.Y > r.Bottom + tol)
+            return null;
+        string s = "";
+        if (Math.Abs(p.Y - r.Top) <= tol) s += "T";
+        else if (Math.Abs(p.Y - r.Bottom) <= tol) s += "B";
+        if (Math.Abs(p.X - r.Left) <= tol) s += "L";
+        else if (Math.Abs(p.X - r.Right) <= tol) s += "R";
+        return s.Length == 0 ? null : s;
+    }
+
+    private static Cursor EdgeCursor(string edge) => edge switch
+    {
+        "TL" or "BR" => Cursors.SizeNWSE,
+        "TR" or "BL" => Cursors.SizeNESW,
+        "L" or "R" => Cursors.SizeWE,
+        "T" or "B" => Cursors.SizeNS,
+        _ => Cursors.SizeAll,
+    };
 
     private void OnUp(object sender, MouseButtonEventArgs e)
     {
@@ -305,12 +389,15 @@ public partial class SnipWindow : Window
             ReleaseMouseCapture();
             FinishShape(_drawing);
             _drawing = null;
+            // 画完一个图形后自动回到"选择/移动"模式，可直接拖动或改大小
+            _tool = "move";
+            HighlightTool();
         }
-        else if (_mode == Mode.Editing && _movingEl != null)
+        else if (_mode == Mode.Editing && _op != EditOp.None)
         {
             ReleaseMouseCapture();
-            _movingEl = null;
-            Cursor = Cursors.Arrow;
+            _op = EditOp.None;
+            _opEl = null;
         }
     }
 

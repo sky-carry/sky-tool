@@ -35,9 +35,9 @@ public partial class MemoWindow : Window
             }
             else
             {
-                Left = SystemParameters.WorkArea.Right - Width - 16;
-                Top = SystemParameters.WorkArea.Top + 48;
+                ResetToDefaultPos();
             }
+            EnsureOnScreen();
             if (s.Collapsed) SetCollapsed(true);
             RefreshView();
         };
@@ -274,8 +274,31 @@ public partial class MemoWindow : Window
     public void ToggleVisible()
     {
         if (IsVisible) Hide();
-        else { Show(); SendToBottom(); }
+        else { Show(); EnsureOnScreen(); SendToBottom(); }
         _store.Settings.Visible = IsVisible;
         _store.Save();
+    }
+
+    private void ResetToDefaultPos()
+    {
+        Left = SystemParameters.WorkArea.Right - Width - 16; // 主屏右上角
+        Top = SystemParameters.WorkArea.Top + 48;
+    }
+
+    /// <summary>挂件若不在主显示器上（如曾拖到副屏或屏幕外），自动拉回主屏右上角，避免"点了不见"。
+    /// 用 Win32 按物理位置判断当前所在显示器，复位则用 WPF 主屏工作区坐标，规避混合 DPI 下的坐标歧义。</summary>
+    private void EnsureOnScreen()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return; // 窗口句柄未就绪
+        var mon = Native.MonitorFromWindow(hwnd, Native.MONITOR_DEFAULTTONEAREST);
+        var primary = Native.MonitorFromPoint(new Native.POINT { X = 0, Y = 0 }, Native.MONITOR_DEFAULTTOPRIMARY);
+        if (mon != primary)
+        {
+            ResetToDefaultPos();
+            _store.Settings.Left = Left;
+            _store.Settings.Top = Top;
+            _store.Save();
+        }
     }
 }

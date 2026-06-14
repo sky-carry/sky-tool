@@ -96,6 +96,15 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(out POINT pt);
 
+    public const uint MONITOR_DEFAULTTOPRIMARY = 1;
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
     // ---------- 卷 / USN 日志 ----------
     public const uint GENERIC_READ = 0x80000000;
     public const uint FILE_SHARE_READ = 0x1;
