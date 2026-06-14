@@ -23,7 +23,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Bd" CornerRadius="7" Padding="0,6" Background="Transparent">
-                            <TextBlock Text="{TemplateBinding Content}" Foreground="{StaticResource SubBrush}"
+                            <TextBlock x:Name="Txt" Text="{TemplateBinding Content}" Foreground="{StaticResource SubBrush}"
                                        FontSize="14" HorizontalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -31,8 +31,10 @@
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource Surface2Brush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                <Setter TargetName="Bd" Property="TextElement.Foreground" Value="#16202E"/>
+                                <!-- 柔和的蓝色高亮，不刺眼 -->
+                                <Setter TargetName="Bd" Property="Background" Value="#3A4A74"/>
+                                <Setter TargetName="Txt" Property="Foreground" Value="#EaF0FF"/>
+                                <Setter TargetName="Txt" Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -78,7 +80,7 @@
                     <Grid Margin="14,0,14,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="54"/>
+                            <ColumnDefinition Width="76"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="NewTaskBox" Grid.Column="0" Style="{StaticResource ModernTextBox}"
