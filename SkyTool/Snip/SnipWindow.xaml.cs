@@ -25,14 +25,21 @@ public partial class SnipWindow : Window
     private bool _manualDrag;              // 本次按下是否真正拖动了（否则视为单击选中悬停窗口）
     private Rect _sel = Rect.Empty;
 
-    private string _tool;                 // rect/ellipse/arrow/pen/text/mosaic/null
+    private string _tool = "move";        // move/rect/ellipse/arrow/pen/text/mosaic
     private Color _color = Color.FromRgb(0xE5, 0x39, 0x35);
     private double _thickness = 4;
 
     private readonly Stack<UIElement> _undo = new();
+    private readonly Stack<UIElement> _redo = new();
     private FrameworkElement _drawing;    // 正在拖画的元素
     private Point _shapeStart;
     private TextBox _editingText;
+
+    // 移动已有标注
+    private UIElement _movingEl;
+    private TranslateTransform _moveTT;
+    private Point _moveStart;
+    private double _moveOrigX, _moveOrigY;
 
     private readonly Dictionary<string, Button> _toolButtons = new();
 
@@ -74,12 +81,14 @@ public partial class SnipWindow : Window
         {
             UpdateDim();
             Keyboard.Focus(this);
+            _toolButtons["move"] = BtnMove;
             _toolButtons["rect"] = BtnRect;
             _toolButtons["ellipse"] = BtnEllipse;
             _toolButtons["arrow"] = BtnArrow;
             _toolButtons["pen"] = BtnPen;
             _toolButtons["text"] = BtnText;
             _toolButtons["mosaic"] = BtnMosaic;
+            HighlightTool(); // 默认选择/移动模式高亮
             BuildColorPanel();
             // 蒙层刚出现时就对光标下的窗口做一次吸附高亮
             Native.GetCursorPos(out var pt);
@@ -106,11 +115,13 @@ public partial class SnipWindow : Window
     {
         _editingText = null;          // 丢弃未提交的文字
         _drawing = null;
+        _movingEl = null;
         AnnotCanvas.Children.Clear();
         _undo.Clear();
+        _redo.Clear();
         AnnotCanvas.Clip = null;
         Toolbar.Visibility = Visibility.Collapsed;
-        _tool = null;
+        _tool = "move";
         foreach (var btn in _toolButtons.Values) btn.Background = Brushes.Transparent;
         _mode = Mode.Selecting;
         Cursor = Cursors.Cross;
@@ -199,8 +210,8 @@ public partial class SnipWindow : Window
         if (Toolbar.IsMouseOver) return;
         var p = e.GetPosition(Root);
 
-        // 双击取消截图（标注工具激活且点在选区内时除外，避免误关）
-        if (e.ClickCount == 2 && (_tool == null || !_sel.Contains(p)))
+        // 双击取消截图（绘图工具激活且点在选区内时除外，避免误关）
+        if (e.ClickCount == 2 && (!IsDrawingTool(_tool) || !_sel.Contains(p)))
         {
             Close();
             return;
@@ -213,7 +224,7 @@ public partial class SnipWindow : Window
             _manualDrag = false; // 还没拖动；单击松手就选中当前吸附的窗口
             CaptureMouse();
         }
-        else if (_mode == Mode.Editing && _tool != null && _sel.Contains(p))
+        else if (_mode == Mode.Editing && IsDrawingTool(_tool) && _sel.Contains(p))
         {
             CommitTextEditing();
             if (_tool == "text")
@@ -228,6 +239,22 @@ public partial class SnipWindow : Window
                 CaptureMouse();
             }
             e.Handled = true;
+        }
+        else if (_mode == Mode.Editing) // 选择/移动模式：拖动已有标注
+        {
+            CommitTextEditing();
+            var el = HitAnnotation(p);
+            if (el != null)
+            {
+                _movingEl = el;
+                _moveStart = p;
+                _moveTT = el.RenderTransform as TranslateTransform;
+                if (_moveTT == null) { _moveTT = new TranslateTransform(); el.RenderTransform = _moveTT; }
+                _moveOrigX = _moveTT.X; _moveOrigY = _moveTT.Y;
+                Cursor = Cursors.SizeAll;
+                CaptureMouse();
+                e.Handled = true;
+            }
         }
     }
 
@@ -252,6 +279,11 @@ public partial class SnipWindow : Window
         {
             UpdateShape(_drawing, _shapeStart, ClampToSel(p));
         }
+        else if (_mode == Mode.Editing && _movingEl != null)
+        {
+            _moveTT.X = _moveOrigX + (p.X - _moveStart.X);
+            _moveTT.Y = _moveOrigY + (p.Y - _moveStart.Y);
+        }
     }
 
     private void OnUp(object sender, MouseButtonEventArgs e)
@@ -273,6 +305,12 @@ public partial class SnipWindow : Window
             ReleaseMouseCapture();
             FinishShape(_drawing);
             _drawing = null;
+        }
+        else if (_mode == Mode.Editing && _movingEl != null)
+        {
+            ReleaseMouseCapture();
+            _movingEl = null;
+            Cursor = Cursors.Arrow;
         }
     }
 
@@ -335,10 +373,31 @@ public partial class SnipWindow : Window
     private void Tool_Click(object sender, RoutedEventArgs e)
     {
         string tag = (string)((Button)sender).Tag;
-        _tool = _tool == tag ? null : tag;
+        // 再次点击当前工具 → 回到选择/移动模式
+        _tool = _tool == tag ? "move" : tag;
+        HighlightTool();
+    }
+
+    private static bool IsDrawingTool(string t) =>
+        t is "rect" or "ellipse" or "arrow" or "pen" or "text" or "mosaic";
+
+    private void HighlightTool()
+    {
         foreach (var (key, btn) in _toolButtons)
             btn.Background = key == _tool ? new SolidColorBrush(Color.FromRgb(0x3E, 0x5A, 0x95)) : Brushes.Transparent;
-        Cursor = _tool == null ? Cursors.Arrow : Cursors.Cross;
+        Cursor = IsDrawingTool(_tool) ? Cursors.Cross : Cursors.Arrow;
+    }
+
+    /// <summary>命中光标下的标注元素（AnnotCanvas 的直接子元素）。</summary>
+    private UIElement HitAnnotation(Point p)
+    {
+        var hit = AnnotCanvas.InputHitTest(p) as DependencyObject;
+        while (hit != null && hit != AnnotCanvas)
+        {
+            if (hit is UIElement ue && AnnotCanvas.Children.Contains(ue)) return ue;
+            hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+        }
+        return null;
     }
 
     private void Thick_Click(object sender, RoutedEventArgs e)
@@ -356,13 +415,14 @@ public partial class SnipWindow : Window
         {
             case "rect":
             {
-                var r = new Rectangle { Stroke = brush, StrokeThickness = _thickness, RadiusX = 2, RadiusY = 2 };
+                // Fill=Transparent 让框内区域也能被点中拖动（视觉仍透明）
+                var r = new Rectangle { Stroke = brush, Fill = Brushes.Transparent, StrokeThickness = _thickness, RadiusX = 2, RadiusY = 2 };
                 Canvas.SetLeft(r, p.X); Canvas.SetTop(r, p.Y);
                 return r;
             }
             case "ellipse":
             {
-                var el = new Ellipse { Stroke = brush, StrokeThickness = _thickness };
+                var el = new Ellipse { Stroke = brush, Fill = Brushes.Transparent, StrokeThickness = _thickness };
                 Canvas.SetLeft(el, p.X); Canvas.SetTop(el, p.Y);
                 return el;
             }
@@ -424,11 +484,18 @@ public partial class SnipWindow : Window
             if (mosaic != null)
             {
                 AnnotCanvas.Children.Add(mosaic);
-                _undo.Push(mosaic);
+                PushUndo(mosaic);
             }
             return;
         }
+        PushUndo(el);
+    }
+
+    /// <summary>记录一次新增标注（清空重做栈）。</summary>
+    private void PushUndo(UIElement el)
+    {
         _undo.Push(el);
+        _redo.Clear();
     }
 
     private static Geometry BuildArrow(Point a, Point b, double thickness)
@@ -538,16 +605,32 @@ public partial class SnipWindow : Window
         Canvas.SetLeft(block, x + 2);
         Canvas.SetTop(block, y + 2);
         AnnotCanvas.Children.Add(block);
-        _undo.Push(block);
+        PushUndo(block);
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e) => Undo();
+    private void Redo_Click(object sender, RoutedEventArgs e) => Redo();
 
     private void Undo()
     {
         CommitTextEditing();
         if (_undo.Count > 0)
-            AnnotCanvas.Children.Remove(_undo.Pop());
+        {
+            var el = _undo.Pop();
+            AnnotCanvas.Children.Remove(el);
+            _redo.Push(el);
+        }
+    }
+
+    private void Redo()
+    {
+        CommitTextEditing();
+        if (_redo.Count > 0)
+        {
+            var el = _redo.Pop();
+            AnnotCanvas.Children.Add(el);
+            _undo.Push(el);
+        }
     }
 
     // ---------- 输出 ----------
@@ -656,6 +739,10 @@ public partial class SnipWindow : Window
                 break;
             case Key.Z when Keyboard.Modifiers == ModifierKeys.Control:
                 Undo();
+                break;
+            case Key.Y when Keyboard.Modifiers == ModifierKeys.Control:
+            case Key.Z when Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift):
+                Redo();
                 break;
             case Key.S when Keyboard.Modifiers == ModifierKeys.Control:
                 Save_Click(null, null);

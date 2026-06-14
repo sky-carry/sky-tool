@@ -195,44 +195,73 @@ public partial class MemoWindow : Window
 
     // ---------- 每任务时间编辑 ----------
 
+    private bool _timeListInit;
+    private bool _suppressTimeSel;
+
+    private void EnsureTimeLists()
+    {
+        if (_timeListInit) return;
+        for (int h = 0; h < 24; h++) HourList.Items.Add(h.ToString("00"));
+        for (int m = 0; m < 60; m += 5) MinList.Items.Add(m.ToString("00"));
+        _timeListInit = true;
+    }
+
     private void Clock_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not TodoItem item) return;
+        EnsureTimeLists();
         _timeEditItem = item;
-        TimeEditBox.Text = item.RemindAt?.ToString("H:mm") ?? "";
+
+        // 默认选中：任务已有提醒则用它，否则用当前时间的下一个整点附近
+        var t = item.RemindAt ?? DateTime.Now.AddMinutes(30);
+        _suppressTimeSel = true;
+        HourList.SelectedIndex = t.Hour;
+        MinList.SelectedIndex = Math.Clamp(t.Minute / 5, 0, MinList.Items.Count - 1);
+        _suppressTimeSel = false;
+        UpdateTimePreview();
+
         TimePopup.PlacementTarget = (UIElement)sender;
         TimePopup.IsOpen = true;
-        TimeEditBox.Focus();
-        TimeEditBox.SelectAll();
+        HourList.ScrollIntoView(HourList.SelectedItem);
+        MinList.ScrollIntoView(MinList.SelectedItem);
     }
 
-    private void TimeEditBox_KeyDown(object sender, KeyEventArgs e)
+    private void TimeSel_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (e.Key == Key.Enter) ApplyTimeEdit();
-        else if (e.Key == Key.Escape) TimePopup.IsOpen = false;
+        if (_suppressTimeSel) return;
+        UpdateTimePreview();
     }
 
-    private void TimeApply_Click(object sender, RoutedEventArgs e) => ApplyTimeEdit();
-
-    private void ApplyTimeEdit()
+    private void UpdateTimePreview()
     {
-        if (_timeEditItem == null) { TimePopup.IsOpen = false; return; }
-        string text = TimeEditBox.Text?.Trim();
-        if (string.IsNullOrEmpty(text))
+        if (HourList.SelectedItem == null || MinList.SelectedItem == null) { TimePreview.Text = ""; return; }
+        TimePreview.Text = $"{HourList.SelectedItem} : {MinList.SelectedItem}";
+    }
+
+    private void TimePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var parts = ((string)((FrameworkElement)sender).Tag).Split(':');
+        _suppressTimeSel = true;
+        HourList.SelectedIndex = int.Parse(parts[0]);
+        MinList.SelectedIndex = int.Parse(parts[1]) / 5;
+        _suppressTimeSel = false;
+        UpdateTimePreview();
+        HourList.ScrollIntoView(HourList.SelectedItem);
+    }
+
+    private void TimeApply_Click(object sender, RoutedEventArgs e)
+    {
+        if (_timeEditItem == null || HourList.SelectedItem == null || MinList.SelectedItem == null)
         {
-            _timeEditItem.RemindAt = null;
-        }
-        else if (TryParseRemindTime(text, out var dt))
-        {
-            _timeEditItem.RemindAt = dt;
-            _timeEditItem.Notified = false; // 重设时间后重新生效
-        }
-        else
-        {
-            TimeEditBox.Foreground = (System.Windows.Media.Brush)FindResource("RedBrush");
+            TimePopup.IsOpen = false;
             return;
         }
-        TimeEditBox.ClearValue(ForegroundProperty);
+        int h = int.Parse((string)HourList.SelectedItem);
+        int m = int.Parse((string)MinList.SelectedItem);
+        var dt = DateTime.Today.AddHours(h).AddMinutes(m);
+        if (dt < DateTime.Now) dt = dt.AddDays(1); // 已过的时间点算到明天
+        _timeEditItem.RemindAt = dt;
+        _timeEditItem.Notified = false;            // 重设时间后重新生效
         TimePopup.IsOpen = false;
     }
 

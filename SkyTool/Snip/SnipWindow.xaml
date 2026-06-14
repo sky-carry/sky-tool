@@ -69,6 +69,10 @@
                 <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="Black"/>
             </Border.Effect>
             <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnMove" Style="{StaticResource ToolBtn}" ToolTip="选择 / 移动标注" Click="Tool_Click" Tag="move">
+                    <Path Fill="#E8E8F2" Data="M3,2 L3,15 L6.5,11.5 L9,16 L11,15 L8.5,10.5 L13,10 Z"/>
+                </Button>
+                <Rectangle Style="{StaticResource ToolSep}"/>
                 <Button x:Name="BtnRect" Style="{StaticResource ToolBtn}" ToolTip="矩形" Click="Tool_Click" Tag="rect">
                     <Rectangle Width="13" Height="10" Stroke="#E8E8F2" StrokeThickness="1.5" RadiusX="1.5" RadiusY="1.5"/>
                 </Button>
@@ -117,6 +121,9 @@
 
                 <Button Style="{StaticResource ToolBtn}" ToolTip="撤销 (Ctrl+Z)" Click="Undo_Click">
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE7A7;"/>
+                </Button>
+                <Button Style="{StaticResource ToolBtn}" ToolTip="重做 (Ctrl+Y)" Click="Redo_Click">
+                    <TextBlock Style="{StaticResource Mdl2}" Text="&#xE7A6;"/>
                 </Button>
 
                 <Rectangle Style="{StaticResource ToolSep}"/>
