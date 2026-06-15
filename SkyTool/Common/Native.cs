@@ -105,6 +105,24 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
+    // 按显示器取有效 DPI（每显示器 DPI，用于气泡浮窗在混合 DPI 下精准定位）
+    public const int MDT_EFFECTIVE_DPI = 0;
+
+    [DllImport("shcore.dll")]
+    public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
     // ---------- 卷 / USN 日志 ----------
     public const uint GENERIC_READ = 0x80000000;
     public const uint FILE_SHARE_READ = 0x1;

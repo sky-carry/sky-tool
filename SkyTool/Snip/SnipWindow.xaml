@@ -128,6 +128,12 @@
 
                 <Rectangle Style="{StaticResource ToolSep}"/>
 
+                <Button x:Name="BtnOcr" Style="{StaticResource ToolBtn}" ToolTip="提取文字 (OCR)" Click="Ocr_Click">
+                    <TextBlock Text="文" FontWeight="Bold" FontSize="14" Foreground="#9AD0FF"/>
+                </Button>
+
+                <Rectangle Style="{StaticResource ToolSep}"/>
+
                 <Button Style="{StaticResource ToolBtn}" ToolTip="钉到屏幕 (F3)" Click="Pin_Click">
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE718;" Foreground="#F5C97B"/>
                 </Button>

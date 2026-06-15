@@ -793,6 +793,43 @@ public partial class SnipWindow : Window
         }
     }
 
+    // ---------- 文字提取（OCR） ----------
+    private async void Ocr_Click(object sender, RoutedEventArgs e)
+    {
+        if (_sel.IsEmpty) return;
+        // OCR 用原始截图按像素裁剪（不含标注），识别更准
+        BitmapSource crop;
+        try
+        {
+            crop = new CroppedBitmap(_shot.Bitmap, DipRectToPixels(_sel));
+            crop.Freeze();
+        }
+        catch { return; }
+
+        // 记下选区的物理像素矩形，供结果窗贴到原图右侧
+        int selX = _shot.X + (int)Math.Round(_sel.X * PxPerDipX);
+        int selY = _shot.Y + (int)Math.Round(_sel.Y * PxPerDipY);
+        int selW = (int)Math.Round(_sel.Width * PxPerDipX);
+        int selH = (int)Math.Round(_sel.Height * PxPerDipY);
+
+        string text = null;
+        try { text = await OcrUtil.RecognizeAsync(crop); }
+        catch { /* 识别失败按"无结果"处理 */ }
+
+        Close(); // 关掉截图蒙层再弹结果
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            MessageBox.Show(
+                OcrUtil.IsAvailable ? "没有识别到文字。" : "系统未安装 OCR 语言包，无法识别文字。",
+                "Sky 工具箱", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        Clipboard.SetText(text);
+        new OcrResultWindow(text, selX, selY, selW, selH).Show();
+    }
+
     private void Pin_Click(object sender, RoutedEventArgs e) => FinishPin();
 
     private void FinishPin()
