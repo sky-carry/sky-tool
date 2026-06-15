@@ -22,6 +22,28 @@ dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile
 
 需要 .NET 8 SDK（运行只需 .NET 8 Desktop Runtime）。
 
+## 发布新版本（更新流程）
+
+程序内置「检查更新」：拉取下载站的 `latest.json` 比对版本，发现新版可一键下载、校验 SHA256、
+改名替换正在运行的 exe 并自动重启。发版步骤：
+
+1. **改版本号**：`SkyTool.csproj` 的 `<Version>`（如 `1.1.0`）。
+2. **发布两份 exe**：
+   ```powershell
+   # 完整版（自包含，双击即用）
+   dotnet publish SkyTool/SkyTool.csproj -c Release -r win-x64 --self-contained true  -p:PublishSingleFile=true -o publish/full
+   # 精简版（需 .NET 8 桌面运行时）
+   dotnet publish SkyTool/SkyTool.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
+   ```
+3. **算完整版 SHA256**：`(Get-FileHash publish/full/SkyTool.exe -Algorithm SHA256).Hash.ToLower()`。
+4. **更新清单与页面**：把版本号 / SHA256 / notes / date 填进 `web/latest.json`，并在 `web/index.html`
+   顶部加一条更新日志；下载体积有变也一并更新。
+5. **上传到下载站** `/home/code/sky-tool/`（服务器 `myserver`，`http://124.223.55.175/sky-tool/`）：
+   `SkyTool.exe`（完整版）、`SkyTool-lite.exe`（精简版）、`latest.json`、`index.html`。
+
+> 客户端检查地址固定为 `http://124.223.55.175/sky-tool/latest.json`（域名 `skyyjj.cn` 解析/HTTPS 就绪后可换）。
+> `latest.json` 里 version 比本地 `<Version>` 更大才会触发更新提示。
+
 ## 功能细节
 
 ### 文件搜索
