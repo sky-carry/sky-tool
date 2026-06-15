@@ -83,6 +83,16 @@ section.block{padding:56px 0}
 .keyitem .k{display:inline-block;font-family:var(--font-display);font-weight:600;padding:8px 16px;border-radius:10px;background:var(--surface2);border:1px solid var(--stroke);color:var(--ink);font-size:1rem}
 .keyitem .d{margin-top:10px;color:var(--sub);font-size:.88rem}
 
+.log-list{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.log{background:var(--bg2);border:1px solid var(--stroke);border-radius:16px;padding:22px 24px;transition:border-color .3s}
+.log:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--stroke))}
+.log-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.log-ver{font-family:var(--font-display);font-weight:700;font-size:1.15rem}
+.log-tag{font-size:.7rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--accent);color:#16161f}
+.log-date{color:var(--faint);font-size:.85rem;margin-left:auto}
+.log ul{margin:14px 0 0;padding-left:20px;color:var(--sub)}
+.log li{margin:6px 0;font-size:.93rem}
+
 .notes{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--stroke);border-radius:18px;padding:30px 34px}
 .notes ol{margin:0;padding-left:1.3em;color:var(--sub)}
 .notes li{margin:10px 0}
@@ -116,6 +126,7 @@ footer a:hover{color:var(--ink)}
     <div class="nav-links">
       <a href="#features">功能</a>
       <a href="#keys">热键</a>
+      <a href="#changelog">更新</a>
       <a href="/">← 作品集</a>
       <a class="nav-cta" href="#download">下载</a>
     </div>
@@ -202,6 +213,33 @@ footer a:hover{color:var(--ink)}
   </div>
 </section>
 
+<section class="block" id="changelog">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Changelog</div>
+      <h2>版本更新</h2>
+      <p>程序内置「检查更新」：右键托盘图标 → 检查更新，发现新版可一键下载升级；也会每天静默检查一次。</p>
+    </div>
+    <div class="log-list">
+      <div class="log">
+        <div class="log-head">
+          <span class="log-ver">v1.0.0</span>
+          <span class="log-tag">最新</span>
+          <span class="log-date">2026-06-15</span>
+        </div>
+        <ul>
+          <li>全盘文件秒搜：NTFS MFT 索引 + USN 实时更新，Everything 级体验</li>
+          <li>截图 / 贴图 / 标注：矩形、椭圆、箭头、画笔、文字、马赛克，可直接拖拽改大小、撤销重做</li>
+          <li>新增「文字提取(OCR)」：框选区域一键识别文字，气泡卡片对照展示，可编辑复制</li>
+          <li>桌面待办挂件：定时提醒、贴桌面不挡窗口、可单独设提醒时间</li>
+          <li>固定全局热键 F1 截图、F3 贴图，被占用时自动重试接管</li>
+          <li>新增「检查更新」：发现新版可一键下载并自动重启升级</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="block">
   <div class="wrap">
     <div class="sec-head">
@@ -241,7 +279,7 @@ footer a:hover{color:var(--ink)}
 
 <footer>
   <div class="wrap">
-    Sky 工具箱 v0.1.0 · Windows 10/11 桌面工具 · 完全免费<br>
+    Sky 工具箱 v1.0.0 · Windows 10/11 桌面工具 · 完全免费<br>
     <a href="/">← 返回 Sky 作品集</a>
   </div>
 </footer>

@@ -77,6 +77,39 @@ public partial class App : Application
 
         SetupTray();
         TryRegisterHotkeys();
+
+        // 清理上次更新遗留的旧 exe；启动后稍等再静默检查更新（每天至多一次）
+        UpdateService.CleanupOld();
+        var updTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+        updTimer.Tick += (_, _) =>
+        {
+            updTimer.Stop();
+            if (UpdateService.ShouldAutoCheck()) CheckForUpdates(silent: true);
+        };
+        updTimer.Start();
+    }
+
+    /// <summary>检查更新。silent=true 时只有发现新版才打扰用户（用于每日自动检查）。</summary>
+    private async void CheckForUpdates(bool silent)
+    {
+        var info = await UpdateService.FetchAsync();
+        if (info == null)
+        {
+            if (!silent)
+                _tray?.ShowBalloonTip(2500, "Sky 工具箱", "检查更新失败，请检查网络后再试。", WF.ToolTipIcon.Warning);
+            return;
+        }
+        if (UpdateService.IsNewer(info.Version))
+        {
+            var win = new Update.UpdateWindow(info) { Icon = AppIcon };
+            win.Show();
+            win.Activate();
+        }
+        else if (!silent)
+        {
+            _tray?.ShowBalloonTip(2500, "Sky 工具箱",
+                $"当前已是最新版本（v{UpdateService.CurrentVersion}）。", WF.ToolTipIcon.Info);
+        }
     }
 
     /// <summary>
@@ -160,6 +193,7 @@ public partial class App : Application
         menu.Items.Add($"文件搜索（{SearchHotkeyLabel}）", null, (_, _) => Dispatcher.Invoke(() => Search.ShowAndFocus()));
         menu.Items.Add($"备忘录（{MemoHotkeyLabel}）", null, (_, _) => Dispatcher.Invoke(() => Memo.ToggleVisible()));
         menu.Items.Add(new WF.ToolStripSeparator());
+        menu.Items.Add("检查更新", null, (_, _) => Dispatcher.Invoke(() => CheckForUpdates(silent: false)));
         menu.Items.Add("退出", null, (_, _) => Dispatcher.Invoke(ExitApp));
         _tray.ContextMenuStrip = menu;
         _tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowMain);
