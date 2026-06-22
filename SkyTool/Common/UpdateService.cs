@@ -19,7 +19,13 @@ public class UpdateInfo
 /// （HttpClient + System.Text.Json 均为 .NET 运行时自带，安装包不增大）。</summary>
 public static class UpdateService
 {
+    // 按版本走各自的清单：Pro 用 latest.json（与历史 1.0.0 用户兼容），Lite 用 latest-lite.json，
+    // 这样极简版用户只会被推极简版、Pro 用户只会被推 Pro，互不串包。
+#if OCR
     private const string ManifestUrl = "http://124.223.55.175/sky-tool/latest.json";
+#else
+    private const string ManifestUrl = "http://124.223.55.175/sky-tool/latest-lite.json";
+#endif
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };

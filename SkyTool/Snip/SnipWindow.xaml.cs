@@ -94,6 +94,13 @@ public partial class SnipWindow : Window
             _toolButtons["mosaic"] = BtnMosaic;
             HighlightTool(); // 默认选择/移动模式高亮
             BuildColorPanel();
+#if OCR
+            BtnOcr.Click += Ocr_Click;
+#else
+            // Lite 版不含 OCR：隐藏按钮及其前置分隔条
+            BtnOcr.Visibility = Visibility.Collapsed;
+            SepOcr.Visibility = Visibility.Collapsed;
+#endif
             // 蒙层刚出现时就对光标下的窗口做一次吸附高亮
             Native.GetCursorPos(out var pt);
             HoverAt(new Point((pt.X - _shot.X) / PxPerDipX, (pt.Y - _shot.Y) / PxPerDipY));
@@ -801,7 +808,8 @@ public partial class SnipWindow : Window
         }
     }
 
-    // ---------- 文字提取（OCR） ----------
+    // ---------- 文字提取（OCR，仅 Pro 版编译） ----------
+#if OCR
     private async void Ocr_Click(object sender, RoutedEventArgs e)
     {
         if (_sel.IsEmpty) return;
@@ -837,6 +845,7 @@ public partial class SnipWindow : Window
         Clipboard.SetText(text);
         new OcrResultWindow(text, selX, selY, selW, selH).Show();
     }
+#endif
 
     private void Pin_Click(object sender, RoutedEventArgs e) => FinishPin();
 

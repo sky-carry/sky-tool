@@ -1,9 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- 版本（Edition）：
+       Pro  —— 含文字提取(OCR)，需 Windows SDK 投影（TFM 带 OS 版本号），体积大
+       Lite —— 极简版，不含 OCR，普通 TFM，单文件精简包仅 ~0.3MB
+       本地开发默认 Pro；发布时用 -p:Edition=Lite 切换。 -->
+  <PropertyGroup>
+    <Edition Condition="'$(Edition)'==''">Pro</Edition>
+  </PropertyGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- 10.0.19041.0：启用 Windows SDK 投影，调用系统自带 OCR（Windows.Media.Ocr），无需额外模型/依赖 -->
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- Pro：10.0.19041.0 启用 Windows SDK 投影，调用系统自带 OCR（Windows.Media.Ocr），无需额外模型/依赖 -->
+    <TargetFramework Condition="'$(Edition)'=='Pro'">net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(Edition)'=='Lite'">net8.0-windows</TargetFramework>
+    <DefineConstants Condition="'$(Edition)'=='Pro'">$(DefineConstants);OCR</DefineConstants>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,7 +22,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyTitle>Sky 工具箱</AssemblyTitle>
     <Product>SkyTool</Product>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <!-- 内存策略：工作站 GC + 并发 + 节约内存模式，及时把空闲内存还给系统，适合常驻托盘的小工具 -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
@@ -34,6 +44,13 @@
   <ItemGroup>
     <!-- 图标随程序打包，供窗口与托盘运行时加载 -->
     <Resource Include="app.ico"/>
+  </ItemGroup>
+
+  <!-- Lite 版不含 OCR：排除依赖 WinRT 投影的源文件（OCR 工具与结果气泡窗） -->
+  <ItemGroup Condition="'$(Edition)'=='Lite'">
+    <Compile Remove="Common\OcrUtil.cs" />
+    <Compile Remove="Snip\OcrResultWindow.xaml.cs" />
+    <Page Remove="Snip\OcrResultWindow.xaml" />
   </ItemGroup>
 
 </Project>

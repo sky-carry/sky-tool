@@ -126,9 +126,10 @@
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE7A6;"/>
                 </Button>
 
-                <Rectangle Style="{StaticResource ToolSep}"/>
+                <Rectangle x:Name="SepOcr" Style="{StaticResource ToolSep}"/>
 
-                <Button x:Name="BtnOcr" Style="{StaticResource ToolBtn}" ToolTip="提取文字 (OCR)" Click="Ocr_Click">
+                <!-- OCR 按钮：仅 Pro 版可用，Click 在代码里按版本接线（Lite 版隐藏本按钮与上方分隔条） -->
+                <Button x:Name="BtnOcr" Style="{StaticResource ToolBtn}" ToolTip="提取文字 (OCR)">
                     <TextBlock Text="文" FontWeight="Bold" FontSize="14" Foreground="#9AD0FF"/>
                 </Button>
 

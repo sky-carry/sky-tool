@@ -22,27 +22,45 @@ dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile
 
 需要 .NET 8 SDK（运行只需 .NET 8 Desktop Runtime）。
 
+## 两个版本（Edition）
+
+同一套源码用 `-p:Edition=` 切换产出两个版本：
+
+| 版本 | Edition | OCR | TFM | 备注 |
+|---|---|---|---|---|
+| 极简版 | `Lite` | 无 | `net8.0-windows` | 精简包仅 ~0.3MB，主推、永久免费 |
+| Pro 版 | `Pro`（默认） | 有 | `net8.0-windows10.0.19041.0` | 含文字提取(OCR)及后续高级功能 |
+
+`Edition=Pro` 定义 `OCR` 编译常量并启用 Windows SDK 投影；`Edition=Lite` 排除 `OcrUtil.cs` /
+`OcrResultWindow`，OCR 按钮在截图工具栏里自动隐藏。本地 `dotnet build/run` 默认 Pro（OCR 可用）。
+
 ## 发布新版本（更新流程）
 
-程序内置「检查更新」：拉取下载站的 `latest.json` 比对版本，发现新版可一键下载、校验 SHA256、
-改名替换正在运行的 exe 并自动重启。发版步骤：
+程序内置「检查更新」：拉取下载站清单比对版本，发现新版可一键下载、校验 SHA256、改名替换正在运行的
+exe 并自动重启。**Pro 查 `latest.json`、极简版查 `latest-lite.json`，互不串包。** 发版步骤：
 
-1. **改版本号**：`SkyTool.csproj` 的 `<Version>`（如 `1.1.0`）。
-2. **发布两份 exe**：
+1. **改版本号**：`SkyTool.csproj` 的 `<Version>`（如 `1.2.0`）。
+2. **发布 4 份 exe**（每版各「自包含/精简」两种包）：
    ```powershell
-   # 完整版（自包含，双击即用）
-   dotnet publish SkyTool/SkyTool.csproj -c Release -r win-x64 --self-contained true  -p:PublishSingleFile=true -o publish/full
-   # 精简版（需 .NET 8 桌面运行时）
-   dotnet publish SkyTool/SkyTool.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
+   $p="SkyTool/SkyTool.csproj"; $o="publish/dist"
+   # Pro 自包含 / 精简
+   dotnet publish $p -c Release -r win-x64 -p:Edition=Pro  --self-contained true  -p:PublishSingleFile=true -o publish/pro-full
+   dotnet publish $p -c Release -r win-x64 -p:Edition=Pro  --self-contained false -p:PublishSingleFile=true -o publish/pro-rt
+   # 极简版 自包含 / 精简
+   dotnet publish $p -c Release -r win-x64 -p:Edition=Lite --self-contained true  -p:PublishSingleFile=true -o publish/mini-full
+   dotnet publish $p -c Release -r win-x64 -p:Edition=Lite --self-contained false -p:PublishSingleFile=true -o publish/mini-rt
+   # 收集并改名：SkyTool-Pro(.exe/-rt.exe)、SkyTool-Mini(.exe/-rt.exe)
    ```
-3. **算完整版 SHA256**：`(Get-FileHash publish/full/SkyTool.exe -Algorithm SHA256).Hash.ToLower()`。
-4. **更新清单与页面**：把版本号 / SHA256 / notes / date 填进 `web/latest.json`，并在 `web/index.html`
-   顶部加一条更新日志；下载体积有变也一并更新。
+3. **算两个自包含包的 SHA256**（清单只指向自包含包，对两种包用户都通用）：
+   `(Get-FileHash publish/dist/SkyTool-Pro.exe -Algorithm SHA256).Hash.ToLower()`，Mini 同理。
+4. **更新清单与页面**：版本号 / SHA256 / notes / date 填进 `web/latest.json`（Pro）和
+   `web/latest-lite.json`（极简版），并在 `web/index.html` 顶部加一条更新日志；下载体积有变一并更新。
 5. **上传到下载站** `/home/code/sky-tool/`（服务器 `myserver`，`http://124.223.55.175/sky-tool/`）：
-   `SkyTool.exe`（完整版）、`SkyTool-lite.exe`（精简版）、`latest.json`、`index.html`。
+   `SkyTool-Pro.exe`、`SkyTool-Pro-rt.exe`、`SkyTool-Mini.exe`、`SkyTool-Mini-rt.exe`、
+   `latest.json`、`latest-lite.json`、`index.html`。
 
-> 客户端检查地址固定为 `http://124.223.55.175/sky-tool/latest.json`（域名 `skyyjj.cn` 解析/HTTPS 就绪后可换）。
-> `latest.json` 里 version 比本地 `<Version>` 更大才会触发更新提示。
+> 历史 1.0.0 用户仍查 `latest.json`（被视为 Pro，自动升级到 Pro 自包含包）。
+> 清单里 version 比本地 `<Version>` 更大才会触发更新提示。
 
 ## 功能细节
 
