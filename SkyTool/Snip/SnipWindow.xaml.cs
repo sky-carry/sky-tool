@@ -231,7 +231,13 @@ public partial class SnipWindow : Window
         else if (_mode == Mode.Editing && IsDrawingTool(_tool) && _sel.Contains(p))
         {
             CommitTextEditing();
-            if (_tool == "text")
+            // 鼠标落在已有标注上（边角→缩放、其余→移动）时直接操作它，不画新图形；
+            // 这样画框工具一直开着也能就地改大小/挪位置，无需切回选择模式
+            if (TryStartManipulation(p))
+            {
+                // 已抓住现有标注
+            }
+            else if (_tool == "text")
             {
                 StartTextAt(p);
             }
@@ -247,32 +253,36 @@ public partial class SnipWindow : Window
         else if (_mode == Mode.Editing) // 选择/移动模式：拖动已有标注（移动或缩放）
         {
             CommitTextEditing();
-            var el = HitAnnotation(p) as FrameworkElement;
-            if (el != null)
-            {
-                _opEl = el;
-                _opStart = p;
-                string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
-                if (edge != null)
-                {
-                    _op = EditOp.Resize;
-                    _resizeEdge = edge;
-                    _opOrigRect = ElRect(el);
-                }
-                else
-                {
-                    _op = EditOp.Move;
-                    if (double.IsNaN(Canvas.GetLeft(el))) // 箭头/画笔：用平移变换移动
-                    {
-                        _opTT = el.RenderTransform as TranslateTransform ?? new TranslateTransform();
-                        el.RenderTransform = _opTT; _opTTx = _opTT.X; _opTTy = _opTT.Y;
-                    }
-                    else _opOrigRect = ElRect(el); // Canvas 定位：改 Left/Top
-                }
-                CaptureMouse();
-                e.Handled = true;
-            }
+            if (TryStartManipulation(p)) e.Handled = true;
         }
+    }
+
+    /// <summary>若光标命中已有标注，开始移动/缩放它并捕获鼠标，返回 true；未命中返回 false。</summary>
+    private bool TryStartManipulation(Point p)
+    {
+        var el = HitAnnotation(p) as FrameworkElement;
+        if (el == null) return false;
+        _opEl = el;
+        _opStart = p;
+        string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
+        if (edge != null)
+        {
+            _op = EditOp.Resize;
+            _resizeEdge = edge;
+            _opOrigRect = ElRect(el);
+        }
+        else
+        {
+            _op = EditOp.Move;
+            if (double.IsNaN(Canvas.GetLeft(el))) // 箭头/画笔：用平移变换移动
+            {
+                _opTT = el.RenderTransform as TranslateTransform ?? new TranslateTransform();
+                el.RenderTransform = _opTT; _opTTx = _opTT.X; _opTTy = _opTT.Y;
+            }
+            else _opOrigRect = ElRect(el); // Canvas 定位：改 Left/Top
+        }
+        CaptureMouse();
+        return true;
     }
 
     private void OnMove(object sender, MouseEventArgs e)
@@ -322,17 +332,17 @@ public partial class SnipWindow : Window
             Canvas.SetLeft(_opEl, nl); Canvas.SetTop(_opEl, nt);
             _opEl.Width = nw; _opEl.Height = nh;
         }
-        else if (_mode == Mode.Editing && _op == EditOp.None && !IsDrawingTool(_tool))
+        else if (_mode == Mode.Editing && _op == EditOp.None && _drawing == null)
         {
-            UpdateMoveCursor(p); // 悬停时按位置显示 移动/缩放 光标
+            UpdateHoverCursor(p); // 悬停时按位置显示 缩放/移动/绘制 光标
         }
     }
 
-    /// <summary>选择模式下悬停标注时，按是否靠近边角显示对应光标。</summary>
-    private void UpdateMoveCursor(Point p)
+    /// <summary>悬停在标注上时按位置显示 缩放/移动 光标；空白处按当前工具显示 绘制/箭头光标。</summary>
+    private void UpdateHoverCursor(Point p)
     {
         var el = HitAnnotation(p) as FrameworkElement;
-        if (el == null) { Cursor = Cursors.Arrow; return; }
+        if (el == null) { Cursor = IsDrawingTool(_tool) ? Cursors.Cross : Cursors.Arrow; return; }
         string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
         Cursor = edge != null ? EdgeCursor(edge) : Cursors.SizeAll;
     }
@@ -389,9 +399,7 @@ public partial class SnipWindow : Window
             ReleaseMouseCapture();
             FinishShape(_drawing);
             _drawing = null;
-            // 画完一个图形后自动回到"选择/移动"模式，可直接拖动或改大小
-            _tool = "move";
-            HighlightTool();
+            // 画完保持当前工具不变，可连续画；要移动/缩放就点工具栏对应按钮切回选择模式
         }
         else if (_mode == Mode.Editing && _op != EditOp.None)
         {
