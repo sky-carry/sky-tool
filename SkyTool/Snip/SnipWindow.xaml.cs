@@ -221,10 +221,12 @@ public partial class SnipWindow : Window
         if (Toolbar.IsMouseOver) return;
         var p = e.GetPosition(Root);
 
-        // 双击取消截图（绘图工具激活且点在选区内时除外，避免误关）
-        if (e.ClickCount == 2 && (!IsDrawingTool(_tool) || !_sel.Contains(p)))
+        // 双击（Snipaste 行为）：选区内 = 复制图片并关闭，选区外 = 取消截图。
+        // 正在用绘图工具且点在选区内时不拦截，交给绘制逻辑，避免误触。
+        if (e.ClickCount == 2 && !(IsDrawingTool(_tool) && _sel.Contains(p)))
         {
-            Close();
+            if (!_sel.IsEmpty && _sel.Contains(p)) FinishCopy();
+            else Close();
             return;
         }
 

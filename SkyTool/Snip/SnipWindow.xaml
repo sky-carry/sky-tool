@@ -141,10 +141,10 @@
                 <Button Style="{StaticResource ToolBtn}" ToolTip="保存 (Ctrl+S)" Click="Save_Click">
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE74E;"/>
                 </Button>
-                <Button Style="{StaticResource ToolBtn}" ToolTip="复制并关闭 (Enter)" Click="Copy_Click">
+                <Button Style="{StaticResource ToolBtn}" ToolTip="复制并关闭 (Enter / 双击选区内)" Click="Copy_Click">
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE8FB;" Foreground="#4ECB71"/>
                 </Button>
-                <Button Style="{StaticResource ToolBtn}" ToolTip="取消 (Esc / 双击)" Click="Cancel_Click">
+                <Button Style="{StaticResource ToolBtn}" ToolTip="取消 (Esc / 双击选区外)" Click="Cancel_Click">
                     <TextBlock Style="{StaticResource Mdl2}" Text="&#xE711;" Foreground="#F38BA8"/>
                 </Button>
             </StackPanel>
