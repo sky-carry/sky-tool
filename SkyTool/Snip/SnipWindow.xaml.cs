@@ -45,6 +45,13 @@ public partial class SnipWindow : Window
     private double _opTTx, _opTTy;
     private string _resizeEdge;             // L/R/T/B 组合，如 "TL"
 
+    // 选区自身的移动/缩放（编辑阶段、选择工具下，可二次调整框选范围）
+    private enum SelOp { None, Move, Resize }
+    private SelOp _selOp;
+    private string _selEdge;
+    private Rect _selOrig;
+    private Point _selStart;
+
     private readonly Dictionary<string, Button> _toolButtons = new();
 
     public static void Open()
@@ -259,11 +266,33 @@ public partial class SnipWindow : Window
             }
             e.Handled = true;
         }
-        else if (_mode == Mode.Editing) // 选择/移动模式：拖动已有标注（移动或缩放）
+        else if (_mode == Mode.Editing) // 选择/移动模式：先拖已有标注，否则拖选区本身（移动/缩放）
         {
             CommitTextEditing();
-            if (TryStartManipulation(p)) e.Handled = true;
+            if (TryStartManipulation(p) || TryStartSelEdit(p)) e.Handled = true;
         }
+    }
+
+    /// <summary>选择工具下，点在选区边/角则缩放、点在框内则移动整个选区；命中则捕获鼠标返回 true。</summary>
+    private bool TryStartSelEdit(Point p)
+    {
+        if (_sel.IsEmpty) return false;
+        string edge = HitEdge(_sel, p, 10);
+        if (edge != null)
+        {
+            _selOp = SelOp.Resize;
+            _selEdge = edge;
+        }
+        else if (_sel.Contains(p))
+        {
+            _selOp = SelOp.Move;
+        }
+        else return false;
+
+        _selOrig = _sel;
+        _selStart = p;
+        CaptureMouse();
+        return true;
     }
 
     /// <summary>若光标命中已有标注，开始移动/缩放它并捕获鼠标，返回 true；未命中返回 false。</summary>
@@ -341,19 +370,57 @@ public partial class SnipWindow : Window
             Canvas.SetLeft(_opEl, nl); Canvas.SetTop(_opEl, nt);
             _opEl.Width = nw; _opEl.Height = nh;
         }
-        else if (_mode == Mode.Editing && _op == EditOp.None && _drawing == null)
+        else if (_mode == Mode.Editing && _selOp == SelOp.Move)
+        {
+            double dx = p.X - _selStart.X, dy = p.Y - _selStart.Y;
+            double nx = Math.Clamp(_selOrig.X + dx, 0, Math.Max(0, Root.ActualWidth - _selOrig.Width));
+            double ny = Math.Clamp(_selOrig.Y + dy, 0, Math.Max(0, Root.ActualHeight - _selOrig.Height));
+            _sel = new Rect(nx, ny, _selOrig.Width, _selOrig.Height);
+            UpdateSelectionVisual();
+            AnnotCanvas.Clip = new RectangleGeometry(_sel);
+        }
+        else if (_mode == Mode.Editing && _selOp == SelOp.Resize)
+        {
+            // 把指针限制在屏幕内，缩放后的选区自然不会越界
+            double px = Math.Clamp(p.X, 0, Root.ActualWidth);
+            double py = Math.Clamp(p.Y, 0, Root.ActualHeight);
+            var r = _selOrig;
+            double l = r.Left, t = r.Top, rr = r.Right, b = r.Bottom;
+            if (_selEdge.Contains('L')) l = px;
+            if (_selEdge.Contains('R')) rr = px;
+            if (_selEdge.Contains('T')) t = py;
+            if (_selEdge.Contains('B')) b = py;
+            double nl = Math.Min(l, rr), nt = Math.Min(t, b);
+            double nw = Math.Max(Math.Abs(rr - l), 8), nh = Math.Max(Math.Abs(b - t), 8);
+            _sel = new Rect(nl, nt, nw, nh);
+            UpdateSelectionVisual();
+            AnnotCanvas.Clip = new RectangleGeometry(_sel);
+        }
+        else if (_mode == Mode.Editing && _op == EditOp.None && _selOp == SelOp.None && _drawing == null)
         {
             UpdateHoverCursor(p); // 悬停时按位置显示 缩放/移动/绘制 光标
         }
     }
 
-    /// <summary>悬停在标注上时按位置显示 缩放/移动 光标；空白处按当前工具显示 绘制/箭头光标。</summary>
+    /// <summary>悬停光标：标注上 → 缩放/移动；绘图工具空白处 → 十字；
+    /// 选择工具下选区边/角 → 缩放、框内 → 移动；其余 → 箭头。</summary>
     private void UpdateHoverCursor(Point p)
     {
         var el = HitAnnotation(p) as FrameworkElement;
-        if (el == null) { Cursor = IsDrawingTool(_tool) ? Cursors.Cross : Cursors.Arrow; return; }
-        string edge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
-        Cursor = edge != null ? EdgeCursor(edge) : Cursors.SizeAll;
+        if (el != null)
+        {
+            string aedge = IsResizable(el) ? HitEdge(ElRect(el), p, 9) : null;
+            Cursor = aedge != null ? EdgeCursor(aedge) : Cursors.SizeAll;
+            return;
+        }
+        if (IsDrawingTool(_tool)) { Cursor = Cursors.Cross; return; }
+        if (!_sel.IsEmpty)
+        {
+            string sedge = HitEdge(_sel, p, 10);
+            if (sedge != null) { Cursor = EdgeCursor(sedge); return; }
+            if (_sel.Contains(p)) { Cursor = Cursors.SizeAll; return; }
+        }
+        Cursor = Cursors.Arrow;
     }
 
     private static bool IsResizable(UIElement el) => el is Rectangle || el is Ellipse;
@@ -415,6 +482,12 @@ public partial class SnipWindow : Window
             ReleaseMouseCapture();
             _op = EditOp.None;
             _opEl = null;
+        }
+        else if (_mode == Mode.Editing && _selOp != SelOp.None)
+        {
+            ReleaseMouseCapture();
+            _selOp = SelOp.None;
+            ShowToolbar(); // 选区已变，工具栏跟到新位置
         }
     }
 

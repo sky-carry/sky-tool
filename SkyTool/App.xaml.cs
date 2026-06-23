@@ -55,8 +55,7 @@ public partial class App : Application
         // 备忘录数据
         MemoStore.Instance.Load();
 
-        // 文件索引后台启动
-        FileIndexService.Instance.Start();
+        // 文件索引改为按需构建：首次打开搜索（Ctrl+Alt+F）时才建，关窗空闲后释放，常驻内存大幅降低
 
         // 窗口
         MainWin = new MainWindow { Icon = AppIcon };

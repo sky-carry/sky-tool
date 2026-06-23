@@ -22,7 +22,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyTitle>Sky 工具箱</AssemblyTitle>
     <Product>SkyTool</Product>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <!-- 内存策略：工作站 GC + 并发 + 节约内存模式，及时把空闲内存还给系统，适合常驻托盘的小工具 -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>

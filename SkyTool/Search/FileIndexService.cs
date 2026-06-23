@@ -23,11 +23,18 @@ public class FileIndexService
 {
     public static readonly FileIndexService Instance = new();
 
-    private class Entry
+    private const ulong FrnMask = 0x0000FFFFFFFFFFFF; // 去掉序列号，只留 48 位索引
+    private const ulong DirFlag = 0x8000000000000000; // 目录标志塞进父 FRN 的最高位（FRN 仅 48 位，高位空闲）
+
+    /// <summary>MFT 索引条目：struct 内联进字典省对象头；目录标志并入父 FRN 省一个字段，名字走去重池共享实例。</summary>
+    private struct Entry
     {
         public string Name;
-        public ulong ParentFrn;
-        public bool IsDir;
+        public ulong ParentAndFlag;        // 低 48 位 = 父 FRN，最高位 = 是否目录
+        public readonly ulong Parent => ParentAndFlag & FrnMask;
+        public readonly bool IsDir => (ParentAndFlag & DirFlag) != 0;
+        public static Entry Make(string name, ulong parent, bool isDir)
+            => new() { Name = name, ParentAndFlag = (parent & FrnMask) | (isDir ? DirFlag : 0) };
     }
 
     private class VolumeIndex
@@ -39,10 +46,8 @@ public class FileIndexService
         public readonly ConcurrentDictionary<ulong, Entry> Entries = new();
     }
 
-    private const ulong FrnMask = 0x0000FFFFFFFFFFFF; // 去掉序列号，只留 48 位索引
-
     /// <summary>降级模式条目：用 struct + 连续数组存储，省去每条目的对象头开销；
-    /// Dir 是共享引用（同目录的所有子项指向同一个字符串），进一步省内存。</summary>
+    /// Dir 是共享引用（同目录的所有子项指向同一个字符串），Name 走去重池共享，进一步省内存。</summary>
     private struct WalkEntry
     {
         public string Name;
@@ -54,17 +59,34 @@ public class FileIndexService
     private WalkEntry[] _walkIndex = Array.Empty<WalkEntry>(); // 降级模式索引（结构体数组）
     private CancellationTokenSource _cts = new();
 
-    public bool IsAdminMode { get; private set; }
+    // 文件名去重池：大量重复的叶子名（index.js、package.json、LICENSE…）只存一份实例
+    private ConcurrentDictionary<string, string> _namePool = new(StringComparer.Ordinal);
+    private string Intern(string s) => s == null ? null : _namePool.GetOrAdd(s, s);
+
+    // 按需构建 + 空闲释放：不开机常驻，搜索时才建，关窗空闲若干分钟后释放，下次搜索重建
+    private readonly object _gate = new();
+    private bool _building;
+    private bool _active;                          // 搜索窗是否打开
+    private long _idleSince;
+    private const long IdleTimeoutMs = 3 * 60 * 1000;
+    private readonly System.Threading.Timer _idleTimer;
+
+    public bool IsAdminMode { get; private set; } = IsAdministrator();
     public bool Ready { get; private set; }
     public string Status { get; private set; } = "索引尚未开始";
     public event Action StatusChanged;
+
+    private FileIndexService()
+    {
+        _idleTimer = new System.Threading.Timer(_ => IdleTick(), null, 60_000, 60_000);
+    }
 
     public long TotalCount
     {
         get
         {
             long n = _walkIndex.Length;
-            foreach (var v in _volumes) n += v.Entries.Count;
+            lock (_volumes) foreach (var v in _volumes) n += v.Entries.Count;
             return n;
         }
     }
@@ -75,13 +97,62 @@ public class FileIndexService
         return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
 
-    public void Start()
+    /// <summary>确保索引正在构建或已就绪；搜索窗打开/查询时调用，幂等。</summary>
+    public void EnsureStarted()
     {
-        _cts = new CancellationTokenSource();
-        Task.Run(() => Build(_cts.Token));
+        CancellationToken ct;
+        lock (_gate)
+        {
+            _active = true;
+            if (Ready || _building) return;
+            _building = true;
+            _cts = new CancellationTokenSource();
+            ct = _cts.Token;
+        }
+        Task.Run(() =>
+        {
+            try { Build(ct); }
+            catch { /* 取消或异常：留待下次重建 */ }
+            finally { lock (_gate) _building = false; }
+        });
     }
 
-    public void Stop() => _cts.Cancel();
+    /// <summary>兼容旧调用，等价于 EnsureStarted。</summary>
+    public void Start() => EnsureStarted();
+
+    /// <summary>搜索窗关闭：进入空闲计时，超时后释放索引省内存。</summary>
+    public void MarkIdle()
+    {
+        lock (_gate) { _active = false; _idleSince = Environment.TickCount64; }
+    }
+
+    public void Stop()
+    {
+        _cts.Cancel();
+        _idleTimer.Dispose();
+    }
+
+    private void IdleTick()
+    {
+        lock (_gate)
+        {
+            if (_active || _building || !Ready) return;
+            if (Environment.TickCount64 - _idleSince < IdleTimeoutMs) return;
+            FreeIndexLocked();
+        }
+    }
+
+    /// <summary>释放常驻索引（停 USN 监听、清空条目与去重池、归还内存）；下次搜索自动重建。</summary>
+    private void FreeIndexLocked()
+    {
+        _cts.Cancel();                 // 结束所有 USN 监听线程
+        Ready = false;
+        lock (_volumes) _volumes.Clear();
+        _walkIndex = Array.Empty<WalkEntry>();
+        _namePool = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        SetStatus("索引已释放（下次搜索自动重建）");
+        Common.MemoryUtil.Trim();
+    }
 
     private void SetStatus(string s)
     {
@@ -201,7 +272,7 @@ public class FileIndexService
                     int recLen = ParseUsnRecord(buf, offset, out ulong frn, out ulong parent,
                         out bool isDir, out string name, out _);
                     if (recLen <= 0) break;
-                    vi.Entries[frn] = new Entry { Name = name, ParentFrn = parent, IsDir = isDir };
+                    vi.Entries[frn] = Entry.Make(Intern(name), parent, isDir);
                     offset += recLen;
                 }
             }
@@ -325,7 +396,7 @@ public class FileIndexService
                         if ((reason & (Native.USN_REASON_FILE_DELETE | Native.USN_REASON_RENAME_OLD_NAME)) != 0)
                             vi.Entries.TryRemove(frn, out _);
                         else if ((reason & (Native.USN_REASON_FILE_CREATE | Native.USN_REASON_RENAME_NEW_NAME)) != 0)
-                            vi.Entries[frn] = new Entry { Name = name, ParentFrn = parent, IsDir = isDir };
+                            vi.Entries[frn] = Entry.Make(Intern(name), parent, isDir);
 
                         offset += recLen;
                     }
@@ -385,7 +456,7 @@ public class FileIndexService
                     {
                         var (name, isDir, reparse) = e.Current;
                         // Dir 共享同一个 dir 字符串实例，不为每个文件单独存完整路径
-                        list.Add(new WalkEntry { Name = name, Dir = dir, IsDir = isDir });
+                        list.Add(new WalkEntry { Name = Intern(name), Dir = dir, IsDir = isDir });
                         if (isDir && !reparse)
                             stack.Push(dir + '\\' + name);
 
@@ -494,7 +565,7 @@ public class FileIndexService
             if (cur == vi.RootFrn) break;
             if (!vi.Entries.TryGetValue(cur, out var e)) break; // 父级缺失，挂到盘根
             parts.Add(e.Name);
-            cur = e.ParentFrn;
+            cur = e.Parent;
         }
         if (parts.Count == 0) return null;
         parts.Reverse();

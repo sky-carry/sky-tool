@@ -34,12 +34,21 @@ public partial class SearchWindow : Window
             AdminBanner.Visibility = svc.IsAdminMode ? Visibility.Collapsed : Visibility.Visible;
             SearchBox.Focus();
         };
-        // 关闭时隐藏而不是销毁，索引常驻；顺手把搜索期间的临时内存还给系统
-        Closing += (s, e) => { e.Cancel = true; Hide(); Common.MemoryUtil.Trim(); };
+        // 关闭时隐藏而不是销毁；标记空闲（空闲若干分钟后索引会自动释放省内存），顺手归还临时内存
+        Closing += (s, e) => { e.Cancel = true; HideSearch(); };
+    }
+
+    /// <summary>隐藏搜索窗并通知索引进入空闲计时。</summary>
+    private void HideSearch()
+    {
+        FileIndexService.Instance.MarkIdle();
+        Hide();
+        Common.MemoryUtil.Trim();
     }
 
     public void ShowAndFocus()
     {
+        FileIndexService.Instance.EnsureStarted(); // 按需建索引（已就绪则仅保持活跃）
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
@@ -103,14 +112,14 @@ public partial class SearchWindow : Window
         }
         else if (e.Key == Key.Escape)
         {
-            Hide();
+            HideSearch();
         }
     }
 
     private void ResultList_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) OpenRow(ResultList.SelectedItem as ResultRow);
-        else if (e.Key == Key.Escape) Hide();
+        else if (e.Key == Key.Escape) HideSearch();
     }
 
     private void ResultList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
